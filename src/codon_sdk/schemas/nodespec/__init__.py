@@ -26,15 +26,20 @@ class NodeSpec(BaseModel):
         """
         Generates a unique identifier for the node specification.
         """
-        hasher = hashlib.sha256()
         py_dict = self.model_dump(mode="json", exclude_none=True)
         canonical_spec = json.dumps(py_dict, sort_keys=True, separators=(',', ':'))
         to_hash = f"{namespace} {canonical_spec.strip()}".strip()
-        hasher.update(to_hash.encode("utf-8"))
+        nodespec_id = nodespec_hash_method(hashable_string=to_hash)
         
-        return hasher.hexdigest()
+        return nodespec_id
     
     
+def nodespec_hash_method(hashable_string: str) -> str:
+    """The method used to create the hash for the nodespec_id"""
+    hasher = hashlib.sha256()
+    hasher.update(hashable_string.encode("utf-8"))
+    return hasher.hexdigest()
+
 class FunctionAnalysisResult(BaseModel):
     name: str = Field(description="The name of the function.")
     callable_signature: str = Field(description="The callable signature of the function.")
