@@ -50,9 +50,9 @@ class NodeSpec(BaseModel):
             org_namespace=org_namespace,
             name=name,
             role=role,
-            callable_signature=callable.callable_signature,
-            input_schema=callable.input_schema,
-            output_schema=callable.output_schema,
+            callable_signature=callable_attrs.callable_signature,
+            input_schema=callable_attrs.input_schema,
+            output_schema=callable_attrs.output_schema,
             model_name=model_name,
             model_version=model_version
         )
