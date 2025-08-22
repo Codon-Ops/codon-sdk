@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+# This is the main SDK package name
+name = "codon-sdk"
+version = "0.1.0"
+authors = [
+  { name="Sheldon Gilbert", email="sheldon@codonops.ai"},
+  { name="Martin Arroyo", email="martin@codonops.ai" },
+]
+description = "The core SDK for Codon project components, including agents and data schemas."
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+# Core dependencies needed by every part of the SDK
+dependencies = [
+    "pydantic",
+]
+
+# This tells setuptools to find the package code inside the 'src' directory
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# This section defines the "extras" for optional features of the core SDK
+[project.optional-dependencies]
+# Defines `pip install codon-sdk[nodespec]`
+nodespec = []
+
+# Defines `pip install codon-sdk[agents]`
+# List any dependencies needed ONLY by the agent framework here.
+agents = [
+    "dependency-for-agents==1.2.3",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/your-username/codon-sdk"
+"Bug Tracker" = "https://github.com/your-username/codon-sdk/issues"
