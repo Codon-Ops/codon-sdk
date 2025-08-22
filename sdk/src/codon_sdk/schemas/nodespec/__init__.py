@@ -32,13 +32,13 @@ class NodeSpec(BaseModel):
                  org_namespace: str, 
                  name: str, 
                  role: str, 
-                 func: Callable[..., Any], 
+                 callable: Callable[..., Any], 
                  model_name: Optional[str] = None, 
                  model_version: Optional[str] = None):
        
-        callable = analyze_function(func)
+        callable_attrs = analyze_function(callable)
         nodespec_id = self._generate_nodespec_id(
-            callable_attrs=callable, 
+            callable_attrs=callable_attrs, 
             org_namespace=org_namespace, 
             name=name, 
             role=role, 
