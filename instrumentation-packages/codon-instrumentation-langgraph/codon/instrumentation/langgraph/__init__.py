@@ -12,6 +12,7 @@ from opentelemetry.sdk.resources import Resource
 from codon_sdk.schemas.nodespec import generate_nodespec
 
 SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME")
+ORG_NAMESPACE = os.getenv("ORG_NAMESPACE")
 
 def initialize_telemetry(service_name: str = SERVICE_NAME or "") -> None:
     # Set up service name
@@ -42,7 +43,7 @@ def track_agent(
             model_name=model_name, 
             model_version=model_version
         )
-        nodespec_id = nodespec.generate_nodespec_id()
+        nodespec_id = nodespec.generate_nodespec_id(namespace=ORG_NAMESPACE)
 
         if inspect.iscoroutinefunction(func):
             @wraps(func)
@@ -51,6 +52,7 @@ def track_agent(
 
                 with tracer.start_as_current_span(nodespec.name) as span:
                     span.set_attribute("codon.nodespec.id", nodespec_id)
+                    span.set_attribute("codon.nodespec.version", nodespec.spec_version)
                     span.set_attribute("langgraph.node.name", nodespec.name)
                     span.set_attribute("langgraph.node.callable_signature", nodespec.callable_signature)
                     span.set_attribute("langgraph.node.input_schema", nodespec.input_schema)
@@ -77,6 +79,7 @@ def track_agent(
 
                 with tracer.start_as_current_span(nodespec.name) as span:
                     span.set_attribute("codon.nodespec.id", nodespec_id)
+                    span.set_attribute("codon.nodespec.version", nodespec.spec_version)
                     span.set_attribute("langgraph.node.name", nodespec.name)
                     span.set_attribute("langgraph.node.callable_signature", nodespec.callable_signature)
                     span.set_attribute("langgraph.node.input_schema", nodespec.input_schema)
