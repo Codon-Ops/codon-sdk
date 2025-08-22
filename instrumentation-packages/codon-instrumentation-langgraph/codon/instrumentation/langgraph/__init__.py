@@ -34,7 +34,7 @@ def initialize_telemetry(service_name: str = SERVICE_NAME or "") -> None:
 
     trace.set_tracer_provider(provider)
 
-def track_agent(
+def track_node(
         node_name: str,
         role: str,
         model_name: Optional[str] = None,
