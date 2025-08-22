@@ -27,19 +27,8 @@ class NodeSpec(BaseModel):
         Generates a unique identifier for the node specification.
         """
         hasher = hashlib.sha256()
-        # required_fields = " ".join([
-        #     getattr(self, field_name) for field_name, field_info in
-        #     NodeSpec.model_fields.items()
-        #     if field_info.is_required()
-        # ])
-        # optional_fields = " ".join([
-        #     getattr(self, field_name) for field_name, field_info in 
-        #     NodeSpec.model_fields.items()
-        #     if not field_info.is_required() 
-        #       and field_name not in self.model_fields_set
-        #       and getattr(self, field_name) is not None
-        # ])
-        canonical_spec = self.model_dump_json(sort_keys=True, exclude_none=True, warnings=False)
+        py_dict = self.model_dump(mode="json", exclude_none=True)
+        canonical_spec = json.dumps(py_dict, sort_keys=True, separators=(',', ':'))
         to_hash = f"{namespace} {canonical_spec.strip()}".strip()
         hasher.update(to_hash.encode("utf-8"))
         
