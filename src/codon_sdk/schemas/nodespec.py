@@ -76,12 +76,12 @@ def analyze_function(func: Callable[..., Any]) -> FunctionAnalysisResult:
         return {}
     
 
-def generate_nodespec_id(
+def generate_nodespec(
         name: str, 
         role: str, 
         callable: Callable[..., Any], 
         model_name: Optional[str] = None,
-        model_version: Optional[str] = None):
+        model_version: Optional[str] = None) -> NodeSpec:
     # Analyze the function
     func_metadata = analyze_function(func=callable)
     # Create the nodespec
@@ -94,5 +94,4 @@ def generate_nodespec_id(
         model_name = model_name,
         model_version = model_version
     )
-    # Generate the id
-    return nodespec.generate_nodespec_id()
+    return nodespec

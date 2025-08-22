@@ -9,7 +9,7 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 
-from codon_sdk.schemas.nodespec import NodeSpec, analyze_function
+from codon_sdk.schemas.nodespec import generate_nodespec
 
 SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME")
 
@@ -35,14 +35,11 @@ def track_agent(
 ):
 
     def decorator(func):
-        func_metadata = analyze_function(func)
-        nodespec = NodeSpec(
-            name=node_name,
+        nodespec = generate_nodespec(
+            name=node_name, 
             role=role,
-            callable_signature=func_metadata.callable_signature,
-            input_schema=func_metadata.input_schema,
-            output_schema=func_metadata.output_schema,
-            model_name=model_name,
+            callable=func,
+            model_name=model_name, 
             model_version=model_version
         )
         nodespec_id = nodespec.generate_nodespec_id()
