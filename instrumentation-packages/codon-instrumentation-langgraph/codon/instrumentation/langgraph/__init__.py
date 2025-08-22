@@ -1,4 +1,5 @@
 import os
+import time
 import inspect
 from functools import wraps
 from typing import Optional, Dict, Any, get_type_hints
@@ -69,8 +70,11 @@ def track_agent(
 
                     span.set_attribute(LangGraphSpanAttributes.Inputs.value, str(args))
                     
+                    start = time.perf_counter()
                     result = await func(*args, **kwargs)
-                    
+                    end = time.perf_counter()
+                    elapsed = round(start - end, 3)
+                    span.set_attribute(LangGraphSpanAttributes.NodeLatency.value, str(elapsed))
                     span.set_attribute(LangGraphSpanAttributes.Outputs.value, str(result))
 
                 return result
