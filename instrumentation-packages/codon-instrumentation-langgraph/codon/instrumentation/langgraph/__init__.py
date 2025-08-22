@@ -73,7 +73,7 @@ def track_agent(
                     start = time.perf_counter()
                     result = await func(*args, **kwargs)
                     end = time.perf_counter()
-                    elapsed = round(start - end, 3)
+                    elapsed = round(end - start, 3)
                     span.set_attribute(LangGraphSpanAttributes.NodeLatency.value, str(elapsed))
                     span.set_attribute(LangGraphSpanAttributes.Outputs.value, str(result))
 
@@ -104,8 +104,11 @@ def track_agent(
 
                     span.set_attribute(LangGraphSpanAttributes.Inputs.value, str(args))
 
+                    start = time.perf_counter()
                     result = func(*args, **kwargs)
-
+                    end = time.perf_counter()
+                    elapsed = round(end - start, 3)
+                    span.set_attribute(LangGraphSpanAttributes.NodeLatency.value, str(elapsed))
                     span.set_attribute(LangGraphSpanAttributes.Outputs.value, str(result))
 
                     return result
