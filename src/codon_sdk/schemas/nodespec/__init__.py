@@ -22,24 +22,25 @@ class NodeSpec(BaseModel):
         """This validator ensures that the spec_version used is the official one and won't be overridden."""
         return __version__
     
-    def generate_nodespec_id(self) -> str:
+    def generate_nodespec_id(self, namespace: str) -> str:
         """
         Generates a unique identifier for the node specification.
         """
         hasher = hashlib.sha256()
-        required_fields = " ".join([
-            getattr(self, field_name) for field_name, field_info in
-            NodeSpec.model_fields.items()
-            if field_info.is_required()
-        ])
-        optional_fields = " ".join([
-            getattr(self, field_name) for field_name, field_info in 
-            NodeSpec.model_fields.items()
-            if not field_info.is_required() 
-              and field_name not in self.model_fields_set
-              and getattr(self, field_name) is not None
-        ])
-        to_hash = " ".join([required_fields, optional_fields]).strip()
+        # required_fields = " ".join([
+        #     getattr(self, field_name) for field_name, field_info in
+        #     NodeSpec.model_fields.items()
+        #     if field_info.is_required()
+        # ])
+        # optional_fields = " ".join([
+        #     getattr(self, field_name) for field_name, field_info in 
+        #     NodeSpec.model_fields.items()
+        #     if not field_info.is_required() 
+        #       and field_name not in self.model_fields_set
+        #       and getattr(self, field_name) is not None
+        # ])
+        canonical_spec = self.model_dump_json(sort_keys=True, exclude_none=True, warnings=False)
+        to_hash = f"{namespace} {canonical_spec.strip()}".strip()
         hasher.update(to_hash.encode("utf-8"))
         
         return hasher.hexdigest()
@@ -87,7 +88,7 @@ def analyze_function(func: Callable[..., Any]) -> FunctionAnalysisResult:
     
 
 def generate_nodespec(
-        name: str, 
+        node_name: str, 
         role: str, 
         callable: Callable[..., Any], 
         model_name: Optional[str] = None,
@@ -96,7 +97,7 @@ def generate_nodespec(
     func_metadata = analyze_function(func=callable)
     # Create the nodespec
     nodespec = NodeSpec(
-        name = name,
+        name = node_name,
         role = role,
         callable_signature = func_metadata.callable_signature,
         input_schema = func_metadata.input_schema,
