@@ -9,7 +9,9 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 
-from codon_sdk.schemas.nodespec import generate_nodespec
+from .attributes import LangGraphSpanAttributes
+from codon_sdk.schemas.nodespec import generate_nodespec, NodeSpecSpanAttributes
+from codon_sdk.schemas.telemetry.spans import CodonBaseSpanAttributes 
 
 SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME")
 ORG_NAMESPACE = os.getenv("ORG_NAMESPACE")
@@ -51,21 +53,24 @@ def track_agent(
                 tracer = trace.get_tracer(__name__)
 
                 with tracer.start_as_current_span(nodespec.name) as span:
-                    span.set_attribute("codon.nodespec.id", nodespec_id)
-                    span.set_attribute("codon.nodespec.version", nodespec.spec_version)
-                    span.set_attribute("langgraph.node.name", nodespec.name)
-                    span.set_attribute("langgraph.node.callable_signature", nodespec.callable_signature)
-                    span.set_attribute("langgraph.node.input_schema", nodespec.input_schema)
-                    span.set_attribute("langgraph.node.output_schema", nodespec.output_schema)
-                    span.set_attribute("langgraph.node.inputs", str(args))
+                    span.set_attribute(CodonBaseSpanAttributes.OrgNamespace.value, ORG_NAMESPACE)
+                    span.set_attribute(CodonBaseSpanAttributes.AgentFramework.value, "langgraph")
+                    span.set_attribute(NodeSpecSpanAttributes.ID.value, nodespec_id)
+                    span.set_attribute(NodeSpecSpanAttributes.Version.value, nodespec.spec_version)
+                    span.set_attribute(NodeSpecSpanAttributes.Name.value, nodespec.name)
+                    span.set_attribute(NodeSpecSpanAttributes.CallableSignature.value, nodespec.callable_signature)
+                    span.set_attribute(NodeSpecSpanAttributes.InputSchema.value, nodespec.input_schema)
+                    span.set_attribute(NodeSpecSpanAttributes.OutputSchema.value, nodespec.output_schema)
                     if nodespec.model_name:
-                        span.set_attribute("langgraph.node.model_name", nodespec.model_name)
+                        span.set_attribute(NodeSpecSpanAttributes.ModelName.value, nodespec.model_name)
                     if nodespec.model_version:
-                        span.set_attribute("langgraph.node.model_version", nodespec.model_version)
+                        span.set_attribute(NodeSpecSpanAttributes.ModelVersion.value, nodespec.model_version)
 
+                    span.set_attribute(LangGraphSpanAttributes.Inputs.value, str(args))
+                    
                     result = await func(*args, **kwargs)
-
-                    span.set_attribute("langgraph.node.outputs", str(result))
+                    
+                    span.set_attribute(LangGraphSpanAttributes.Outputs.value, str(result))
 
                 return result
         
@@ -78,21 +83,24 @@ def track_agent(
                 tracer = trace.get_tracer(__name__)
 
                 with tracer.start_as_current_span(nodespec.name) as span:
-                    span.set_attribute("codon.nodespec.id", nodespec_id)
-                    span.set_attribute("codon.nodespec.version", nodespec.spec_version)
-                    span.set_attribute("langgraph.node.name", nodespec.name)
-                    span.set_attribute("langgraph.node.callable_signature", nodespec.callable_signature)
-                    span.set_attribute("langgraph.node.input_schema", nodespec.input_schema)
-                    span.set_attribute("langgraph.node.output_schema", nodespec.output_schema)
-                    span.set_attribute("langgraph.node.inputs", str(args))
+                    span.set_attribute(CodonBaseSpanAttributes.OrgNamespace.value, ORG_NAMESPACE)
+                    span.set_attribute(CodonBaseSpanAttributes.AgentFramework.value, "langgraph")
+                    span.set_attribute(NodeSpecSpanAttributes.ID.value, nodespec_id)
+                    span.set_attribute(NodeSpecSpanAttributes.Version.value, nodespec.spec_version)
+                    span.set_attribute(NodeSpecSpanAttributes.Name.value, nodespec.name)
+                    span.set_attribute(NodeSpecSpanAttributes.CallableSignature.value, nodespec.callable_signature)
+                    span.set_attribute(NodeSpecSpanAttributes.InputSchema.value, nodespec.input_schema)
+                    span.set_attribute(NodeSpecSpanAttributes.OutputSchema.value, nodespec.output_schema)
                     if nodespec.model_name:
-                        span.set_attribute("langgraph.node.model_name", nodespec.model_name)
+                        span.set_attribute(NodeSpecSpanAttributes.ModelName.value, nodespec.model_name)
                     if nodespec.model_version:
-                        span.set_attribute("langgraph.node.model_version", nodespec.model_version)
+                        span.set_attribute(NodeSpecSpanAttributes.ModelVersion.value, nodespec.model_version)
+
+                    span.set_attribute(LangGraphSpanAttributes.Inputs.value, str(args))
 
                     result = func(*args, **kwargs)
 
-                    span.set_attribute("langgraph.node.outputs", str(result))
+                    span.set_attribute(LangGraphSpanAttributes.Outputs.value, str(result))
 
                     return result
         

@@ -33,7 +33,7 @@ class NodeSpec(BaseModel):
         
         return nodespec_id
     
-    
+
 def nodespec_hash_method(hashable_string: str) -> str:
     """The method used to create the hash for the nodespec_id"""
     hasher = hashlib.sha256()
@@ -100,3 +100,16 @@ def generate_nodespec(
         model_version = model_version
     )
     return nodespec
+
+class NodeSpecSpanAttributes(Enum):
+    """The attribute names for the NodeSpec that will be emitted in telemetry."""
+    ID: str = "codon.nodespec.id"
+    Name: str = "codon.nodespec.name"
+    Version: str = "codon.nodespec.version"
+    CallableSignature: str = "codon.nodespec.callable_signature"
+    InputSchema: str = "codon.nodespec.input_schema"
+    OutputSchema: str = "codon.nodespec.output_schema"
+    ModelVersion: str = "codon.nodespec.model_version"
+    ModelName: str = "codon.nodespec.model_name"
+
+    
