@@ -105,6 +105,7 @@ class NodeSpecSpanAttributes(Enum):
     """The attribute names for the NodeSpec that will be emitted in telemetry."""
     ID: str = "codon.nodespec.id"
     Name: str = "codon.nodespec.name"
+    Role: str = "codon.nodespec.role"
     Version: str = "codon.nodespec.version"
     CallableSignature: str = "codon.nodespec.callable_signature"
     InputSchema: str = "codon.nodespec.input_schema"
