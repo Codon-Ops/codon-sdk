@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 # This is the main SDK package name
-name = "codon-sdk"
-version = "0.1.0"
+name = "codon_sdk"
+version = "0.0.1"
 authors = [
   { name="Sheldon Gilbert", email="sheldon@codonops.ai"},
   { name="Martin Arroyo", email="martin@codonops.ai" },
