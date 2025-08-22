@@ -1,9 +1,11 @@
-from pydantic import BaseModel, Field
-from typing import Optional, Callable, Any, Dict, get_type_hints
+from .version import __version__
+from enum import Enum
+from pydantic import BaseModel, Field, field_validator
+from typing import Optional, Callable, Any, Dict, Literal, get_type_hints
 import hashlib
 import inspect
 import json
-
+    
 class NodeSpec(BaseModel):
     name: str = Field(description="The name of the node.")
     role: str = Field(description="The role of the node.")
@@ -11,8 +13,15 @@ class NodeSpec(BaseModel):
     input_schema: Optional[str] = Field(default=None, description="The input schema of the node.")
     output_schema: Optional[str] = Field(default=None, description="The output schema of the node.")
     model_name: Optional[str] = Field(default=None, description="The name of the model used in the node.")
-    model_version: Optional[str] = Field(default=None, description="The version of the model currently used")
+    model_version: Optional[str] = Field(default=None, description="The version of the model currently used.")
+    spec_version: str = Field(default=__version__, description="The current version of the NodeSpec specification.")
 
+    @field_validator("spec_version", mode="before")
+    @classmethod
+    def _enforce_current_spec_version(cls, v: Any) -> str:
+        """This validator ensures that the spec_version used is the official one and won't be overridden."""
+        return __version__
+    
     def generate_nodespec_id(self) -> str:
         """
         Generates a unique identifier for the node specification.
@@ -34,6 +43,7 @@ class NodeSpec(BaseModel):
         hasher.update(to_hash.encode("utf-8"))
         
         return hasher.hexdigest()
+    
     
 class FunctionAnalysisResult(BaseModel):
     name: str = Field(description="The name of the function.")
