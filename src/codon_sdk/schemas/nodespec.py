@@ -74,3 +74,25 @@ def analyze_function(func: Callable[..., Any]) -> FunctionAnalysisResult:
     except (TypeError, ValueError) as e:
         print(f"Could not analyze function {func.__name__}: {e}")
         return {}
+    
+
+def generate_nodespec_id(
+        name: str, 
+        role: str, 
+        callable: Callable[..., Any], 
+        model_name: Optional[str] = None,
+        model_version: Optional[str] = None):
+    # Analyze the function
+    func_metadata = analyze_function(func=callable)
+    # Create the nodespec
+    nodespec = NodeSpec(
+        name = name,
+        role = role,
+        callable_signature = func_metadata.callable_signature,
+        input_schema = func_metadata.input_schema,
+        output_schema = func_metadata.output_schema,
+        model_name = model_name,
+        model_version = model_version
+    )
+    # Generate the id
+    return nodespec.generate_nodespec_id()
