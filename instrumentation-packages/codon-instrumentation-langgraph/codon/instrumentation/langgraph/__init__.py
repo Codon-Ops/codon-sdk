@@ -2,7 +2,7 @@ import os
 import time
 import inspect
 from functools import wraps
-from typing import Optional, Dict, Any, get_type_hints
+from typing import Optional, List, Dict, Any, get_type_hints
 
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -11,11 +11,14 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 
 from .attributes import LangGraphSpanAttributes
-from codon_sdk.schemas.nodespec import generate_nodespec, NodeSpecSpanAttributes
-from codon_sdk.schemas.telemetry.spans import CodonBaseSpanAttributes 
+from codon_sdk.schemas.nodespec import NodeSpec, NodeSpecSpanAttributes
+from codon_sdk.schemas.telemetry.spans import CodonBaseSpanAttributes
 
-SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME")
-ORG_NAMESPACE = os.getenv("ORG_NAMESPACE")
+SERVICE_NAME: str = os.getenv("OTEL_SERVICE_NAME")
+ORG_NAMESPACE: str = os.getenv("ORG_NAMESPACE")
+__framework__ = "langgraph"
+
+_instrumented_nodes: List[NodeSpec] = []
 
 def initialize_telemetry(service_name: str = SERVICE_NAME or "") -> None:
     # Set up service name
@@ -37,16 +40,16 @@ def track_agent(
         model_name: Optional[str] = None,
         model_version: Optional[str] = None
 ):
-
     def decorator(func):
-        nodespec = generate_nodespec(
-            node_name=node_name, 
+        nodespec = NodeSpec(
+            org_namespace=ORG_NAMESPACE,
+            name=node_name, 
             role=role,
             callable=func,
             model_name=model_name, 
             model_version=model_version
         )
-        nodespec_id = nodespec.generate_nodespec_id(namespace=ORG_NAMESPACE)
+        _instrumented_nodes.append(nodespec)
 
         if inspect.iscoroutinefunction(func):
             @wraps(func)
@@ -55,8 +58,8 @@ def track_agent(
 
                 with tracer.start_as_current_span(nodespec.name) as span:
                     span.set_attribute(CodonBaseSpanAttributes.OrgNamespace.value, ORG_NAMESPACE)
-                    span.set_attribute(CodonBaseSpanAttributes.AgentFramework.value, "langgraph")
-                    span.set_attribute(NodeSpecSpanAttributes.ID.value, nodespec_id)
+                    span.set_attribute(CodonBaseSpanAttributes.AgentFramework.value, __framework__)
+                    span.set_attribute(NodeSpecSpanAttributes.ID.value, nodespec.id)
                     span.set_attribute(NodeSpecSpanAttributes.Version.value, nodespec.spec_version)
                     span.set_attribute(NodeSpecSpanAttributes.Name.value, nodespec.name)
                     span.set_attribute(NodeSpecSpanAttributes.Role.value, nodespec.role)
@@ -90,7 +93,7 @@ def track_agent(
                 with tracer.start_as_current_span(nodespec.name) as span:
                     span.set_attribute(CodonBaseSpanAttributes.OrgNamespace.value, ORG_NAMESPACE)
                     span.set_attribute(CodonBaseSpanAttributes.AgentFramework.value, "langgraph")
-                    span.set_attribute(NodeSpecSpanAttributes.ID.value, nodespec_id)
+                    span.set_attribute(NodeSpecSpanAttributes.ID.value, nodespec.id)
                     span.set_attribute(NodeSpecSpanAttributes.Version.value, nodespec.spec_version)
                     span.set_attribute(NodeSpecSpanAttributes.Name.value, nodespec.name)
                     span.set_attribute(NodeSpecSpanAttributes.Role.value, nodespec.role)
