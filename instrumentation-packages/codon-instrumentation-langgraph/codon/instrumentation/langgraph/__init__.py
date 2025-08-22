@@ -39,7 +39,7 @@ def track_agent(
 
     def decorator(func):
         nodespec = generate_nodespec(
-            name=node_name, 
+            node_name=node_name, 
             role=role,
             callable=func,
             model_name=model_name, 
