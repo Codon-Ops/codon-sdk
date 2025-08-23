@@ -11,8 +11,8 @@ from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExport
 from opentelemetry.sdk.resources import Resource
 
 from .attributes import LangGraphSpanAttributes
-from codon_sdk.schemas.nodespec import NodeSpec, NodeSpecSpanAttributes
-from codon_sdk.schemas.telemetry.spans import CodonBaseSpanAttributes
+from codon_sdk.instrumentation.schemas.nodespec import NodeSpec, NodeSpecSpanAttributes
+from codon_sdk.instrumentation.schemas.telemetry.spans import CodonBaseSpanAttributes
 
 SERVICE_NAME: str = os.getenv("OTEL_SERVICE_NAME")
 ORG_NAMESPACE: str = os.getenv("ORG_NAMESPACE")
