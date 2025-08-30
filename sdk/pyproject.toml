@@ -34,9 +34,9 @@ nodespec = []
 
 # Defines `pip install codon-sdk[agents]`
 # List any dependencies needed ONLY by the agent framework here.
-agents = [
-    "dependency-for-agents==1.2.3",
-]
+# agents = [
+#    "dependency-for-agents==1.2.3",
+# ]
 
 [project.urls]
 "Homepage" = "https://github.com/your-username/codon-sdk"
