@@ -72,6 +72,7 @@ class NodeSpec(BaseModel):
         org_namespace: Optional[str] = None,
         model_name: Optional[str] = None,
         model_version: Optional[str] = None,
+        **kwargs,
     ):
 
         callable_attrs = analyze_function(callable)
@@ -100,13 +101,14 @@ class NodeSpec(BaseModel):
             output_schema=callable_attrs.output_schema,
             model_name=model_name,
             model_version=model_version,
+            **kwargs,
         )
 
     @field_validator("spec_version", mode="before")
     @classmethod
     def _enforce_current_spec_version(cls, v: Any, info: Any) -> str:
         """This validator ensures that the spec_version used is the official one and won't be overridden."""
-        if info.data and "spec_version" in info.data:
+        if "spec_version" in info.data:
             raise NodeSpecValidationError("spec_version cannot be changed.")
 
         return __version__
