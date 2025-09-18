@@ -43,9 +43,9 @@ def canonicalize_logic_request(logic_request: LogicRequest) -> str:
 
   return canonicalized_json
 
-def generate_logic_id(canonicalized_request: str) -> str:
+def generate_idempotent_id(canonicalized_request: str) -> str:
   """
-  Generates an idempotent Logic ID from a canonicalized request string.
+  Generates an idempotent ID from a canonicalized request string.
 
   Args:
     canonicalized_request: The canonicalized string representation of the request.
@@ -55,3 +55,11 @@ def generate_logic_id(canonicalized_request: str) -> str:
   """
   # Use SHA-256 hash for idempotency
   return hashlib.sha256(canonicalized_request.encode('utf-8')).hexdigest()
+
+
+def generate_logic_id(logic_request: LogicRequest) -> str:
+  """Generates the idempotent Logic ID""""
+  canonicalized_form = canonicalize_logic_request(logic_request)
+  logic_id = generate_idempotent_id(canonicalized_form)
+
+  return logic_id
