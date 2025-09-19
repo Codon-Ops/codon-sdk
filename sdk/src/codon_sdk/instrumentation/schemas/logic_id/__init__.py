@@ -58,7 +58,7 @@ def generate_idempotent_id(canonicalized_request: str) -> str:
 
 
 def generate_logic_id(logic_request: LogicRequest) -> str:
-  """Generates the idempotent Logic ID""""
+  """Generates the idempotent Logic ID"""
   canonicalized_form = canonicalize_logic_request(logic_request)
   logic_id = generate_idempotent_id(canonicalized_form)
 
