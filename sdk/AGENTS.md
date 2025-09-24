@@ -2,6 +2,59 @@
 
 This scaffold explains the agent-facing contracts provided by `codon_sdk`. Flesh it out as APIs mature and new helper modules appear.
 
+## Workload Interface
+- **Module:** `codon_sdk.agents.workload`
+- **Class:** `Workload`
+- **Purpose:** Defines the portable workload contract that framework adapters must implement. Captures metadata (name, version, description, tags), registers Agent Class / Logic IDs, and exposes graph-building plus execution hooks.
+- **Expectations:** Subclasses auto-register logic in `_register_logic_group`, wrap callables in `add_node`, manage topology via `add_edge`, and bind a run to `deployment_id` inside `execute` while emitting telemetry.
+- **Instrumentation mixins:** Framework packages ship their own mixins (see `docs/guides/workload-mixin-guidelines.md`) to expose `from_*` constructors while keeping the core SDK agnostic.
+- **Reference implementation:** Each instrumentation package should define mixins inside its own namespace (e.g., `codon.instrumentation.langgraph.LangGraphWorkloadMixin`).
+
+## CodonWorkload (Opinionated Implementation)
+- **Module:** `codon_sdk.agents.codon_workload`
+- **Class:** `CodonWorkload`
+- **Purpose:** Provide a token-based runtime for bespoke agents, including audit-ready provenance capture.
+- **Execution model:** Nodes receive a token `message`, interact with a runtime handle to emit downstream tokens, record custom events, share per-run state, and optionally halt execution.
+- **Audit trail:** `execute(...)` returns an `ExecutionReport` with node results plus an immutable ledger of all enqueue/dequeue and completion events.
+- **Error handling:** Raises `WorkloadRegistrationError` for registration issues and `WorkloadRuntimeError` for runtime violations (unknown routes, step limits, etc.).
+
+### Minimal Example
+```python
+from codon_sdk.agents import CodonWorkload
+
+
+def ingest(message, *, runtime, context):
+    lines = message["document"].splitlines()
+    runtime.emit("summarize", {"lines": lines})
+    return {"line_count": len(lines)}
+
+
+def summarize(message, *, runtime, context):
+    runtime.record_event("summary_started", {"lines": len(message["lines"])})
+    return {
+        "title": message["lines"][0] if message["lines"] else "",
+        "line_count": len(message["lines"]),
+        "deployment": context["deployment_id"],
+    }
+
+
+workload = CodonWorkload(name="ReportAgent", version="0.2.0")
+workload.add_node(ingest, name="ingest", role="parser")
+workload.add_node(summarize, name="summarize", role="responder")
+workload.add_edge("ingest", "summarize")
+
+report = workload.execute(
+    {"document": "Status Update\nWeek 42"},
+    deployment_id="dev-cluster-1",
+    invoked_by="cli",
+)
+
+print(report.node_results("summarize")[-1]["line_count"])  # -> 2
+print(len(report.ledger))  # -> auditable event stream
+```
+
+For a full walkthrough, see `docs/guides/codon-workload-quickstart.md`.
+
 ## NodeSpec Lifecycle
 - **Purpose:** Provide immutable, hashed descriptors for agent nodes so telemetry, caching, and orchestration can agree on identity.
 - **Current usage:** `NodeSpec` introspects Python callables, requires `ORG_NAMESPACE`, and produces span attributes defined in `NodeSpecSpanAttributes`.

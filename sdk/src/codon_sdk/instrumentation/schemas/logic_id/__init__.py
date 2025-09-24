@@ -1,7 +1,11 @@
 """Logic for creating a Logic ID based on the agent's logic and classification"""
-from ..nodespec import NodeSpec
-from pydantic import BaseModel, Field 
+import hashlib
+import json
 from typing import List
+
+from pydantic import BaseModel, Field
+
+from ..nodespec import NodeSpec
 
 class AgentClass(BaseModel):
   name: str = Field(description="The name of the agent class")

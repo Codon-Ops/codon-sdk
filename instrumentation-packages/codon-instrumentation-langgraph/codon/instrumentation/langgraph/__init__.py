@@ -1,8 +1,9 @@
 import os
 import time
 import inspect
+from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Optional, List, Dict, Any, get_type_hints
+from typing import Optional, List, Any, Sequence
 
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
@@ -12,13 +13,41 @@ from opentelemetry.sdk.resources import Resource
 
 from .attributes import LangGraphSpanAttributes
 from codon_sdk.instrumentation.schemas.nodespec import NodeSpec, NodeSpecSpanAttributes
+from codon_sdk.agents import Workload
 from codon_sdk.instrumentation.schemas.telemetry.spans import CodonBaseSpanAttributes
+
+__all__ = [
+    "LangGraphWorkloadMixin",
+    "initialize_telemetry",
+    "track_node",
+]
 
 SERVICE_NAME: str = os.getenv("OTEL_SERVICE_NAME")
 ORG_NAMESPACE: str = os.getenv("ORG_NAMESPACE")
 __framework__ = "langgraph"
 
 _instrumented_nodes: List[NodeSpec] = []
+
+
+class LangGraphWorkloadMixin(ABC):
+    """Mixin contract for workloads built from LangGraph graphs.
+
+    Concrete implementations should inherit from this mixin *and* a concrete
+    ``Workload`` subclass to reuse instrumentation helpers exposed here.
+    """
+
+    @classmethod
+    @abstractmethod
+    def from_langgraph(
+        cls,
+        graph: Any,
+        *,
+        name: str,
+        version: str,
+        description: Optional[str] = None,
+        tags: Optional[Sequence[str]] = None,
+    ) -> Workload:
+        """Translate a LangGraph graph into a concrete Codon workload."""
 
 
 def initialize_telemetry(service_name: str = SERVICE_NAME or "") -> None:
