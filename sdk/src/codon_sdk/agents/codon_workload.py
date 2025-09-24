@@ -18,6 +18,7 @@ from codon_sdk.instrumentation.schemas.nodespec import NodeSpec
 
 from .workload import Workload
 
+import warnings
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
@@ -266,13 +267,15 @@ class CodonWorkload(Workload):
         self,
         payload: Any,
         *,
-        deployment_id: str,
+        deployment_id: str = "local",
         entry_nodes: Optional[Sequence[str]] = None,
         max_steps: int = 1000,
         **kwargs: Any,
     ) -> ExecutionReport:
         if not deployment_id:
             raise ValueError("deployment_id is required when executing a workload")
+        if deployment_id.lower() == "local":
+            warnings.warn("Deployment ID is set to default (local).")
         if not self._node_specs:
             raise WorkloadRuntimeError("No nodes have been registered")
 

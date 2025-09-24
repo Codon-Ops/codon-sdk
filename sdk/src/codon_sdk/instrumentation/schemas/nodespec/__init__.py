@@ -29,6 +29,10 @@ class NodeSpecEnv(BaseModel):
         default="ORG_NAMESPACE",
         description="The namespace of the calling organization.",
     )
+    OrgNamespaceDefault: str = Field(
+        default="local",
+        description="The default ORG_NAMESPACE value."
+    )
 
 
 nodespec_env = NodeSpecEnv()
@@ -44,7 +48,10 @@ class NodeSpec(BaseModel):
         description="The current version of the NodeSpec specification.",
     )
     org_namespace: str = Field(
-        default=os.getenv(nodespec_env.OrgNamespace),
+        default=os.getenv(
+            nodespec_env.OrgNamespace,
+            nodespec_env.OrgNamespaceDefault
+        ),
         description="The namespace of the calling organization.",
     )
     name: str = Field(description="The name of the node.")
