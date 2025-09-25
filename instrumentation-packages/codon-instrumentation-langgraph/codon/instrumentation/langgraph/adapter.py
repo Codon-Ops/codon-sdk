@@ -10,7 +10,7 @@ from codon_sdk.agents import CodonWorkload
 from codon_sdk.agents.codon_workload import WorkloadRuntimeError
 from codon_sdk.instrumentation.schemas.nodespec import NodeSpec
 
-from . import track_node
+from codon.instrumentation.langgraph import track_node
 
 try:  # pragma: no cover - we do not require langgraph at install time
     from langgraph.graph import StateGraph  # type: ignore
