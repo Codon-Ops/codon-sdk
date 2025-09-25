@@ -88,6 +88,7 @@ loop_workload = CodonWorkload(name="Looper", version="0.1.0")
 loop_workload.add_node(loop, name="loop", role="controller")
 loop_workload.add_edge("loop", "loop")
 loop_report = loop_workload.execute({}, deployment_id="qa")
+# In async contexts use: loop_report = await loop_workload.execute_async(...)
 print(loop_report.node_results("loop"))  # [0, 1, 2]
 ```
 

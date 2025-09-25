@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 
 from codon_sdk.agents import (
@@ -149,3 +151,26 @@ def test_looping_node_respects_max_steps():
 
     report = workload.execute({"payload": 1}, deployment_id="qa", max_steps=10)
     assert len(report.node_results("loop")) == 3  # initial + 2 re-entries
+
+
+def test_execute_async_handles_coroutines():
+    workload = CodonWorkload(name="Async", version="0.0.1")
+
+    async def first(message, *, runtime, context):
+        await asyncio.sleep(0)
+        runtime.emit("second", {"value": message["value"] + 1})
+        return {"value": message["value"]}
+
+    async def second(message, *, runtime, context):
+        await asyncio.sleep(0)
+        return message["value"]
+
+    workload.add_node(first, name="first", role="starter")
+    workload.add_node(second, name="second", role="finisher")
+    workload.add_edge("first", "second")
+
+    report = asyncio.run(
+        workload.execute_async({"value": 1}, deployment_id="async")
+    )
+
+    assert report.node_results("second")[0] == 2

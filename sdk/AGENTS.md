@@ -50,6 +50,9 @@ report = workload.execute(
     invoked_by="cli",
 )
 
+# In async contexts (e.g., notebooks) prefer:
+# report = await workload.execute_async(...)
+
 print(report.node_results("summarize")[-1]["line_count"])  # -> 2
 print(len(report.ledger))  # -> auditable event stream
 ```

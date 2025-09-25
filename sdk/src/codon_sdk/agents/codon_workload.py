@@ -1,10 +1,13 @@
 """Concrete Workload implementation for Codon's opinionated agent framework."""
 from __future__ import annotations
 
+import asyncio
+import inspect
+import threading
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Deque, DefaultDict, Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Any, Awaitable, Callable, Deque, DefaultDict, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 from uuid import uuid4
 
 from codon_sdk.instrumentation.schemas.logic_id import (
@@ -68,6 +71,37 @@ class ExecutionReport:
 
     def node_results(self, node: str) -> List[Any]:
         return [record.result for record in self.results.get(node, [])]
+
+
+def _run_coroutine_sync(coro_factory: Callable[[], Awaitable[Any]]) -> Any:
+    """Run a coroutine and return its result, regardless of active event loop."""
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(coro_factory())
+
+    result_box: Dict[str, Any] = {}
+    exc_box: Dict[str, BaseException] = {}
+
+    def runner() -> None:
+        new_loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(new_loop)
+        try:
+            result_box["result"] = new_loop.run_until_complete(coro_factory())
+        except BaseException as exc:  # propagate original exception
+            exc_box["exc"] = exc
+        finally:
+            new_loop.close()
+
+    thread = threading.Thread(target=runner, daemon=True)
+    thread.start()
+    thread.join()
+
+    if "exc" in exc_box:
+        raise exc_box["exc"]
+
+    return result_box.get("result")
 
 
 class WorkloadRegistrationError(RuntimeError):
@@ -262,7 +296,7 @@ class CodonWorkload(Workload):
         self._predecessors[destination_name].add(source_name)
         self._update_logic_identity()
 
-    def execute(
+    async def execute_async(
         self,
         payload: Any,
         *,
@@ -368,6 +402,8 @@ class CodonWorkload(Workload):
             started_at = _utcnow()
             try:
                 result = node_callable(token.payload, runtime=handle, context=context)
+                if inspect.isawaitable(result):
+                    result = await result  # type: ignore[assignment]
             except Exception as exc:  # pragma: no cover
                 ledger.append(
                     AuditEvent(
@@ -426,6 +462,25 @@ class CodonWorkload(Workload):
             ledger=ledger,
             run_id=run_id,
             context=context,
+        )
+
+    def execute(
+        self,
+        payload: Any,
+        *,
+        deployment_id: str,
+        entry_nodes: Optional[Sequence[str]] = None,
+        max_steps: int = 1000,
+        **kwargs: Any,
+    ) -> ExecutionReport:
+        return _run_coroutine_sync(
+            lambda: self.execute_async(
+                payload,
+                deployment_id=deployment_id,
+                entry_nodes=entry_nodes,
+                max_steps=max_steps,
+                **kwargs,
+            )
         )
 
     def _compute_agent_class_id(self) -> str:
