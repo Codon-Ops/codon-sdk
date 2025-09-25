@@ -40,7 +40,17 @@ class LangGraphWorkloadAdapter:
 
         compiled, raw_nodes, raw_edges = cls._normalise_graph(graph)
         node_map = cls._coerce_node_map(raw_nodes)
-        edge_list = cls._coerce_edges(raw_edges)
+        raw_edge_list = cls._coerce_edges(raw_edges)
+
+        node_names = set(node_map.keys())
+        valid_edges = []
+        entry_from_virtual = set()
+        for src, dst in raw_edge_list:
+            if src not in node_names or dst not in node_names:
+                if src not in node_names and dst in node_names:
+                    entry_from_virtual.add(dst)
+                continue
+            valid_edges.append((src, dst))
 
         workload = CodonWorkload(
             name=name,
@@ -49,8 +59,8 @@ class LangGraphWorkloadAdapter:
             tags=tags,
         )
 
-        successors: Dict[str, Sequence[str]] = cls._build_successor_map(edge_list)
-        predecessors: Dict[str, Sequence[str]] = cls._build_predecessor_map(edge_list)
+        successors: Dict[str, Sequence[str]] = cls._build_successor_map(valid_edges)
+        predecessors: Dict[str, Sequence[str]] = cls._build_predecessor_map(valid_edges)
 
         role_overrides = role_overrides or {}
 
@@ -69,7 +79,7 @@ class LangGraphWorkloadAdapter:
                 org_namespace=org_namespace,
             )
 
-        for edge in edge_list:
+        for edge in valid_edges:
             workload.add_edge(*edge)
 
         workload._predecessors.update({k: set(v) for k, v in predecessors.items()})
@@ -79,6 +89,7 @@ class LangGraphWorkloadAdapter:
             workload._entry_nodes = list(entry_nodes)
         else:
             inferred = [node for node, preds in predecessors.items() if not preds]
+            inferred = list({*inferred, *entry_from_virtual})
             workload._entry_nodes = inferred or list(node_map.keys())
 
         workload._langgraph_compiled = compiled
