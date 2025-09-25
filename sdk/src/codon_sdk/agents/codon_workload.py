@@ -18,8 +18,6 @@ from codon_sdk.instrumentation.schemas.nodespec import NodeSpec
 
 from .workload import Workload
 
-import warnings
-
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -187,6 +185,7 @@ class CodonWorkload(Workload):
         self._successors: DefaultDict[str, Set[str]] = defaultdict(set)
         self._agent_class_id: Optional[str] = None
         self._logic_id: Optional[str] = None
+        self._entry_nodes: Optional[List[str]] = None
         super().__init__(
             name=name,
             version=version,
@@ -267,25 +266,25 @@ class CodonWorkload(Workload):
         self,
         payload: Any,
         *,
-        deployment_id: str = "local",
+        deployment_id: str,
         entry_nodes: Optional[Sequence[str]] = None,
         max_steps: int = 1000,
         **kwargs: Any,
     ) -> ExecutionReport:
         if not deployment_id:
             raise ValueError("deployment_id is required when executing a workload")
-        if deployment_id.lower() == "local":
-            warnings.warn("Deployment ID is set to default (local).")
         if not self._node_specs:
             raise WorkloadRuntimeError("No nodes have been registered")
 
-        if entry_nodes is None:
+        if entry_nodes is not None:
+            active_entry_nodes = list(entry_nodes)
+        elif self._entry_nodes:
+            active_entry_nodes = list(self._entry_nodes)
+        else:
             entry_candidates = [
                 name for name, preds in self._predecessors.items() if not preds
             ]
             active_entry_nodes = entry_candidates or list(self._node_specs.keys())
-        else:
-            active_entry_nodes = list(entry_nodes)
         for node in active_entry_nodes:
             if node not in self._node_specs:
                 raise WorkloadRuntimeError(f"Entry node '{node}' is not registered")

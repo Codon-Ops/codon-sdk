@@ -50,3 +50,6 @@ class LangGraphWorkloadMixin(ABC):
 - Maintain a changelog noting new or deprecated factory methods so downstream consumers can track compatibility.
 
 For further architectural context, see `docs/design/Workload builder spec - Codon SDK.txt`.
+
+### Reference Implementation
+- The LangGraph instrumentation package ships `LangGraphWorkloadAdapter.from_langgraph(...)`, which converts a LangGraph `StateGraph` into a `CodonWorkload`, auto-registering nodes, edges, and telemetry. Use it as a template when building adapters for other ecosystems.

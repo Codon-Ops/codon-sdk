@@ -9,6 +9,7 @@ This scaffold explains the agent-facing contracts provided by `codon_sdk`. Flesh
 - **Expectations:** Subclasses auto-register logic in `_register_logic_group`, wrap callables in `add_node`, manage topology via `add_edge`, and bind a run to `deployment_id` inside `execute` while emitting telemetry.
 - **Instrumentation mixins:** Framework packages ship their own mixins (see `docs/guides/workload-mixin-guidelines.md`) to expose `from_*` constructors while keeping the core SDK agnostic.
 - **Reference implementation:** Each instrumentation package should define mixins inside its own namespace (e.g., `codon.instrumentation.langgraph.LangGraphWorkloadMixin`).
+- **Adapters:** `LangGraphWorkloadAdapter.from_langgraph(...)` demonstrates how to wrap existing LangGraph graphs with `CodonWorkload` automatically; use it as a model for future adapters.
 
 ## CodonWorkload (Opinionated Implementation)
 - **Module:** `codon_sdk.agents.codon_workload`

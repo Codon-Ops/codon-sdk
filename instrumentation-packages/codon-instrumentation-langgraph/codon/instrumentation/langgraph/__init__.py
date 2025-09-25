@@ -15,11 +15,13 @@ from .attributes import LangGraphSpanAttributes
 from codon_sdk.instrumentation.schemas.nodespec import NodeSpec, NodeSpecSpanAttributes
 from codon_sdk.agents import Workload
 from codon_sdk.instrumentation.schemas.telemetry.spans import CodonBaseSpanAttributes
+from .adapter import LangGraphWorkloadAdapter
 
 __all__ = [
     "LangGraphWorkloadMixin",
     "initialize_telemetry",
     "track_node",
+    "LangGraphWorkloadAdapter",
 ]
 
 SERVICE_NAME: str = os.getenv("OTEL_SERVICE_NAME")
