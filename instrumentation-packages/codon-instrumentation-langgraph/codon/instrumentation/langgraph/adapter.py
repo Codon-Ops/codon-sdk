@@ -233,6 +233,8 @@ class LangGraphWorkloadAdapter:
     ) -> Callable[..., Any]:
         from codon.instrumentation.langgraph import track_node
 
+        runnable = cls._unwrap_runnable(runnable)
+
         decorator = track_node(node_name=node_name, role=role)
 
         async def invoke_callable(state: Any) -> Any:
@@ -272,6 +274,46 @@ class LangGraphWorkloadAdapter:
             return next_state
 
         return node_callable
+
+    @staticmethod
+    def _unwrap_runnable(runnable: Any) -> Any:
+        """Attempt to peel wrappers to find the actual callable runnable."""
+
+        seen: set[int] = set()
+        current = runnable
+
+        while True:
+            if current is None:
+                break
+
+            identifier = id(current)
+            if identifier in seen:
+                break
+            seen.add(identifier)
+
+            if hasattr(current, "ainvoke") or hasattr(current, "invoke") or callable(current):
+                return current
+
+            candidate = None
+            for attr in ("callable", "node", "value", "wrapped", "layer"):
+                if hasattr(current, attr):
+                    candidate = getattr(current, attr)
+                    if candidate is not current:
+                        break
+
+            if candidate is None and isinstance(current, Mapping):
+                for key in ("callable", "node", "value"):
+                    if key in current:
+                        candidate = current[key]
+                        if candidate is not current:
+                            break
+
+            if candidate is None:
+                break
+
+            current = candidate
+
+        return runnable
 
     @staticmethod
     def _build_successor_map(edges: Sequence[Tuple[str, str]]) -> Dict[str, Sequence[str]]:

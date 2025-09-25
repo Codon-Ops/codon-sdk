@@ -108,10 +108,11 @@ def track_node(
                     span.set_attribute(
                         NodeSpecSpanAttributes.InputSchema.value, nodespec.input_schema
                     )
-                    span.set_attribute(
-                        NodeSpecSpanAttributes.OutputSchema.value,
-                        nodespec.output_schema,
-                    )
+                    if nodespec.output_schema is not None:
+                        span.set_attribute(
+                            NodeSpecSpanAttributes.OutputSchema.value,
+                            nodespec.output_schema,
+                        )
                     if nodespec.model_name:
                         span.set_attribute(
                             NodeSpecSpanAttributes.ModelName.value, nodespec.model_name
@@ -165,10 +166,11 @@ def track_node(
                     span.set_attribute(
                         NodeSpecSpanAttributes.InputSchema.value, nodespec.input_schema
                     )
-                    span.set_attribute(
-                        NodeSpecSpanAttributes.OutputSchema.value,
-                        nodespec.output_schema,
-                    )
+                    if nodespec.output_schema is not None:
+                        span.set_attribute(
+                            NodeSpecSpanAttributes.OutputSchema.value,
+                            nodespec.output_schema,
+                        )
                     if nodespec.model_name:
                         span.set_attribute(
                             NodeSpecSpanAttributes.ModelName.value, nodespec.model_name
