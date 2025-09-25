@@ -10,8 +10,6 @@ from codon_sdk.agents import CodonWorkload
 from codon_sdk.agents.codon_workload import WorkloadRuntimeError
 from codon_sdk.instrumentation.schemas.nodespec import NodeSpec
 
-from codon.instrumentation.langgraph import track_node
-
 try:  # pragma: no cover - we do not require langgraph at install time
     from langgraph.graph import StateGraph  # type: ignore
 except Exception:  # pragma: no cover
@@ -158,6 +156,8 @@ class LangGraphWorkloadAdapter:
         runnable: Any,
         successors: Sequence[str],
     ) -> Callable[..., Any]:
+        from codon.instrumentation.langgraph import track_node
+
         decorator = track_node(node_name=node_name, role=role)
 
         async def invoke_callable(state: Any) -> Any:
