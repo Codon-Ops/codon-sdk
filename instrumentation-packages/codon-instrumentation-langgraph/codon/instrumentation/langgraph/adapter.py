@@ -149,36 +149,47 @@ class LangGraphWorkloadAdapter:
     @staticmethod
     def _coerce_node_map(nodes: Any) -> Dict[str, Any]:
         if isinstance(nodes, Mapping):
-            return dict(nodes)
+            result: Dict[str, Any] = {}
+            for name, data in nodes.items():
+                result[name] = LangGraphWorkloadAdapter._select_runnable(name, data)
+            return result
 
         result: Dict[str, Any] = {}
         for item in nodes:
-            name = None
-            runnable = None
-
-            if isinstance(item, tuple):
-                if len(item) >= 2:
-                    name, data = item[0], item[1]
-                    if callable(data):
-                        runnable = data
-                    elif isinstance(data, Mapping):
-                        runnable = data.get("callable") or data.get("node") or data.get("value")
-                if runnable is None and len(item) >= 2 and hasattr(item[1], "node"):
-                    runnable = getattr(item[1], "node")
+            if isinstance(item, tuple) and len(item) >= 2:
+                name = item[0]
+                data = item[1]
+                result[name] = LangGraphWorkloadAdapter._select_runnable(name, data)
             else:
-                name = getattr(item, "name", None) or getattr(item, "key", None)
-                runnable = (
-                    getattr(item, "callable", None)
-                    or getattr(item, "node", None)
-                    or getattr(item, "value", None)
-                )
-
-            if name is None or runnable is None:
-                raise ValueError(f"Cannot determine callable for LangGraph node entry: {item!r}")
-
-            result[name] = runnable
+                raise ValueError(f"Unrecognized LangGraph node entry: {item!r}")
 
         return result
+
+    @staticmethod
+    def _select_runnable(name: str, data: Any) -> Any:
+        candidates: list[Any] = []
+
+        if callable(data) or hasattr(data, "ainvoke") or hasattr(data, "invoke"):
+            return data
+
+        if isinstance(data, Mapping):
+            for key in ("callable", "node", "value", "runnable"):
+                if key in data and data[key] is not None:
+                    candidates.append(data[key])
+        else:
+            for attr in ("callable", "node", "value", "runnable", "wrapped", "inner"):
+                if hasattr(data, attr):
+                    candidate = getattr(data, attr)
+                    if candidate is not None and candidate is not data:
+                        candidates.append(candidate)
+
+        for candidate in candidates:
+            if candidate is None:
+                continue
+            if callable(candidate) or hasattr(candidate, "ainvoke") or hasattr(candidate, "invoke"):
+                return candidate
+
+        raise WorkloadRuntimeError(f"Node '{name}' is not callable")
 
     @staticmethod
     def _coerce_edges(edges: Any) -> Sequence[Tuple[str, str]]:
@@ -295,14 +306,14 @@ class LangGraphWorkloadAdapter:
                 return current
 
             candidate = None
-            for attr in ("callable", "node", "value", "wrapped", "layer"):
+            for attr in ("callable", "node", "value", "wrapped", "inner", "runnable"):
                 if hasattr(current, attr):
                     candidate = getattr(current, attr)
                     if candidate is not current:
                         break
 
             if candidate is None and isinstance(current, Mapping):
-                for key in ("callable", "node", "value"):
+                for key in ("callable", "node", "value", "runnable"):
                     if key in current:
                         candidate = current[key]
                         if candidate is not current:
