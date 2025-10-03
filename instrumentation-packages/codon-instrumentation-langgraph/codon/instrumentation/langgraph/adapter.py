@@ -9,6 +9,8 @@ from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Sequence, T
 from codon_sdk.agents import CodonWorkload
 from codon_sdk.agents.codon_workload import WorkloadRuntimeError
 
+from .callbacks import LangGraphTelemetryCallback
+
 try:  # pragma: no cover - we do not require langgraph at install time
     from langgraph.graph import StateGraph  # type: ignore
 except Exception:  # pragma: no cover
@@ -249,12 +251,19 @@ class LangGraphWorkloadAdapter:
         decorator = track_node(node_name=node_name, role=role)
 
         async def invoke_callable(state: Any) -> Any:
+            callback_config = {"callbacks": [LangGraphTelemetryCallback()]}
             if hasattr(runnable, "ainvoke"):
-                return await runnable.ainvoke(state)
+                try:
+                    return await runnable.ainvoke(state, config=callback_config)
+                except TypeError:
+                    return await runnable.ainvoke(state)
             if inspect.iscoroutinefunction(runnable):
                 return await runnable(state)
             if hasattr(runnable, "invoke"):
-                result = runnable.invoke(state)
+                try:
+                    result = runnable.invoke(state, config=callback_config)
+                except TypeError:
+                    result = runnable.invoke(state)
                 if inspect.isawaitable(result):
                     return await result
                 return result

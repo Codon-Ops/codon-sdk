@@ -5,6 +5,7 @@ import asyncio
 import inspect
 import threading
 from collections import defaultdict, deque
+import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Awaitable, Callable, Deque, DefaultDict, Dict, Iterable, List, Optional, Sequence, Set, Tuple
@@ -18,11 +19,22 @@ from codon_sdk.instrumentation.schemas.logic_id import (
     generate_logic_id,
 )
 from codon_sdk.instrumentation.schemas.nodespec import NodeSpec
+from codon_sdk.instrumentation.telemetry import NodeTelemetryPayload
 
 from .workload import Workload
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _render_payload(value: Any, *, max_length: int = 2048) -> str:
+    try:
+        rendered = repr(value)
+    except Exception as exc:  # pragma: no cover - defensive path
+        rendered = f"<unrepresentable {type(value).__name__}: {exc}>"
+    if len(rendered) > max_length:
+        return rendered[: max_length - 3] + "..."
+    return rendered
 
 
 @dataclass(frozen=True)
@@ -124,6 +136,7 @@ class _RuntimeHandle:
         enqueue,
         ledger: List[AuditEvent],
         state: Dict[str, Any],
+        telemetry: NodeTelemetryPayload,
     ) -> None:
         self._workload = workload
         self._current_node = current_node
@@ -133,6 +146,7 @@ class _RuntimeHandle:
         self._state = state
         self._stop_requested = False
         self._emissions = 0
+        self._telemetry = telemetry
 
     @property
     def state(self) -> Dict[str, Any]:
@@ -200,6 +214,12 @@ class _RuntimeHandle:
     def emissions(self) -> int:
         return self._emissions
 
+    @property
+    def telemetry(self) -> NodeTelemetryPayload:
+        """Mutable telemetry payload for the current node invocation."""
+
+        return self._telemetry
+
 
 class CodonWorkload(Workload):
     """Default Workload implementation for authoring agents from scratch."""
@@ -220,6 +240,7 @@ class CodonWorkload(Workload):
         self._agent_class_id: Optional[str] = None
         self._logic_id: Optional[str] = None
         self._entry_nodes: Optional[List[str]] = None
+        self._organization_id: Optional[str] = os.getenv("ORG_NAMESPACE")
         super().__init__(
             name=name,
             version=version,
@@ -238,6 +259,14 @@ class CodonWorkload(Workload):
         if self._logic_id is None:
             raise WorkloadRegistrationError("Logic ID has not been computed")
         return self._logic_id
+
+    @property
+    def organization_id(self) -> Optional[str]:
+        if self._organization_id:
+            return self._organization_id
+        if self._node_specs:
+            return next(iter(self._node_specs.values())).org_namespace
+        return os.getenv("ORG_NAMESPACE")
 
     @property
     def nodes(self) -> Sequence[NodeSpec]:
@@ -276,6 +305,7 @@ class CodonWorkload(Workload):
         self._node_functions[name] = function
         self._predecessors.setdefault(name, set())
         self._successors.setdefault(name, set())
+        self._organization_id = nodespec.org_namespace
         self._update_logic_identity()
         return nodespec
 
@@ -327,7 +357,14 @@ class CodonWorkload(Workload):
         context: Dict[str, Any] = {
             "deployment_id": deployment_id,
             "workload_logic_id": self.logic_id,
+            "logic_id": self.logic_id,
+            "workload_id": self.agent_class_id,
+            "workload_run_id": run_id,
             "run_id": run_id,
+            "workload_name": self.metadata.name,
+            "organization_id": self.organization_id,
+            "org_namespace": self.organization_id,
+            "workload_version": self.metadata.version,
             **kwargs,
         }
 
@@ -389,6 +426,23 @@ class CodonWorkload(Workload):
                 )
             steps += 1
 
+            nodespec = self._node_specs[node_name]
+            telemetry = NodeTelemetryPayload(
+                workload_id=self.agent_class_id,
+                workload_name=self.metadata.name,
+                workload_version=self.metadata.version,
+                workload_logic_id=self.logic_id,
+                workload_run_id=run_id,
+                deployment_id=deployment_id,
+                organization_id=self.organization_id,
+                org_namespace=self.organization_id,
+                nodespec_id=nodespec.id,
+                node_name=nodespec.name,
+                node_role=nodespec.role,
+                model_name=nodespec.model_name,
+            )
+            telemetry.node_input = _render_payload(token.payload)
+
             node_callable = self._node_functions[node_name]
             handle = _RuntimeHandle(
                 workload=self,
@@ -397,6 +451,7 @@ class CodonWorkload(Workload):
                 enqueue=enqueue,
                 ledger=ledger,
                 state=state,
+                telemetry=telemetry,
             )
 
             started_at = _utcnow()
@@ -405,6 +460,8 @@ class CodonWorkload(Workload):
                 if inspect.isawaitable(result):
                     result = await result  # type: ignore[assignment]
             except Exception as exc:  # pragma: no cover
+                telemetry.status_code = "ERROR"
+                telemetry.error_message = repr(exc)
                 ledger.append(
                     AuditEvent(
                         event_type="node_failed",
@@ -419,6 +476,9 @@ class CodonWorkload(Workload):
                     f"Node '{node_name}' execution failed"
                 ) from exc
             finished_at = _utcnow()
+            telemetry.duration_ms = int((finished_at - started_at).total_seconds() * 1000)
+            telemetry.status_code = "OK"
+            telemetry.node_output = _render_payload(result)
 
             records[node_name].append(
                 NodeExecutionRecord(
@@ -438,7 +498,7 @@ class CodonWorkload(Workload):
                     source_node=node_name,
                     target_node=None,
                     metadata={
-                        "result_repr": repr(result),
+                        "result_repr": telemetry.node_output,
                         "emissions": handle.emissions,
                     },
                 )

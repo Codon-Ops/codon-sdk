@@ -149,8 +149,15 @@ The ledger records each iteration through the loop, and `runtime.state` tracks i
 
 ## Telemetry & Audit Integration
 - Call `initialize_telemetry(service_name=...)` once during process startup to export spans via OTLP.
-- The adapter uses `track_node`, so every LangGraph node emits spans with attributes like `codon.nodespec.id`, `codon.nodespec.role`, etc.
-- The audit ledger covers token enqueue/dequeue, node completions, custom events (`runtime.record_event`), and stop requests.
+- Each node span now carries workload metadata (`codon.workload.id`, `codon.workload.run_id`, `codon.workload.logic_id`, `codon.workload.deployment_id`, `codon.organization.id`) so traces can be rolled up by workload, deployment, or organization without joins.
+- `LangGraphTelemetryCallback` is attached automatically when invoking LangChain runnables; it captures model vendor/identifier, token usage (prompt, completion, total), and response metadata, all of which is emitted as span attributes (`codon.tokens.*`, `codon.model.*`, `codon.node.raw_attributes_json`).
+- Instrumentation writes into the shared `NodeTelemetryPayload` (`runtime.telemetry`) defined by the SDK so future mixins collect the same schema-aligned fields without reimplementing bookkeeping.
+- Node inputs/outputs and latency are recorded alongside status codes, enabling the `trace_events` schema to be populated directly from exported span data.
+- The audit ledger still covers token enqueue/dequeue, node completions, custom events (`runtime.record_event`), and stop requests for replay and compliance workflows.
+
+### Analytics Alignment
+- The span attribute set is designed to satisfy the MVP telemetry tables in `docs/design/Codon Telemetry Data Schema - MVP Version.txt`. You can aggregate by `nodespec_id` or `logic_id` to compute token totals, error rates, or latency buckets per node.
+- `codon.node.raw_attributes_json` serialises token usage and provider metadata so downstream ETL jobs can populate `raw_attributes_json` in the Iceberg schema without additional enrichment jobs.
 
 ---
 

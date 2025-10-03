@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 
 import pytest
 
@@ -174,3 +175,27 @@ def test_execute_async_handles_coroutines():
     )
 
     assert report.node_results("second")[0] == 2
+
+
+def test_execution_context_includes_workload_identifiers(monkeypatch):
+    monkeypatch.setenv("ORG_NAMESPACE", "context-org")
+
+    workload = CodonWorkload(name="ContextAgent", version="1.0.0")
+    captured_context: dict[str, Any] = {}
+
+    def node(message, *, runtime, context):
+        captured_context.update(context)
+        return message
+
+    workload.add_node(node, name="echo", role="responder")
+
+    workload.execute({"value": 1}, deployment_id="dev-west")
+
+    assert captured_context["workload_id"] == workload.agent_class_id
+    assert captured_context["logic_id"] == workload.logic_id
+    assert captured_context["workload_run_id"] == captured_context["run_id"]
+    assert captured_context["organization_id"] == "context-org"
+    assert captured_context["org_namespace"] == "context-org"
+    assert captured_context["workload_name"] == "ContextAgent"
+    assert captured_context["workload_version"] == "1.0.0"
+    assert captured_context["deployment_id"] == "dev-west"

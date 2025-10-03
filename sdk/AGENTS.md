@@ -16,6 +16,8 @@ This scaffold explains the agent-facing contracts provided by `codon_sdk`. Flesh
 - **Class:** `CodonWorkload`
 - **Purpose:** Provide a token-based runtime for bespoke agents, including audit-ready provenance capture.
 - **Execution model:** Nodes receive a token `message`, interact with a runtime handle to emit downstream tokens, record custom events, share per-run state, and optionally halt execution.
+- **Execution context:** Every node also receives a `context` mapping containing `workload_id`, `logic_id`, `workload_run_id`, `deployment_id`, and organisation metadata so instrumentation layers can stamp spans and logs with the identifiers required by the Codon telemetry schema.
+- **Telemetry payload:** `runtime.telemetry` exposes a shared `NodeTelemetryPayload` (`codon_sdk.instrumentation.telemetry`) that instrumentation mixins use to enrich spans/logs/metrics with token usage, model metadata, network calls, and rollout identifiers.
 - **Audit trail:** `execute(...)` returns an `ExecutionReport` with node results plus an immutable ledger of all enqueue/dequeue and completion events.
 - **Error handling:** Raises `WorkloadRegistrationError` for registration issues and `WorkloadRuntimeError` for runtime violations (unknown routes, step limits, etc.).
 - **Async support:** Run `await workload.execute_async(...)` inside event loops; the synchronous `execute(...)` delegates to the async implementation for convenience.

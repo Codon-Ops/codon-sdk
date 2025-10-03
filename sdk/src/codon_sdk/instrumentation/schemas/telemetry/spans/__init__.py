@@ -4,6 +4,26 @@ from enum import Enum
 class CodonBaseSpanAttributes(Enum):
     OrgNamespace: str = "org.namespace"
     AgentFramework: str = "agent.framework.name"
+    WorkloadId: str = "codon.workload.id"
+    WorkloadLogicId: str = "codon.workload.logic_id"
+    WorkloadRunId: str = "codon.workload.run_id"
+    WorkloadName: str = "codon.workload.name"
+    WorkloadVersion: str = "codon.workload.version"
+    DeploymentId: str = "codon.workload.deployment_id"
+    OrganizationId: str = "codon.organization.id"
+    NodeLatencyMs: str = "codon.node.latency_ms"
+    NodeInput: str = "codon.node.input"
+    NodeOutput: str = "codon.node.output"
+    NodeStatusCode: str = "codon.node.status_code"
+    NodeErrorMessage: str = "codon.node.error_message"
+    NodeRawAttributes: str = "codon.node.raw_attributes_json"
+    TokenUsageJson: str = "codon.tokens.usage_json"
+    TokenInput: str = "codon.tokens.input"
+    TokenOutput: str = "codon.tokens.output"
+    TokenTotal: str = "codon.tokens.total"
+    ModelVendor: str = "codon.model.vendor"
+    ModelIdentifier: str = "codon.model.id"
+    NetworkCallsJson: str = "codon.network.calls_json"
 
 
 class CodonSpanNames(Enum):
