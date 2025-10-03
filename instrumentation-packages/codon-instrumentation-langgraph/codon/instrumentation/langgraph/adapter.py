@@ -158,7 +158,7 @@ class LangGraphWorkloadAdapter:
                 compiled_graph=compiled,
             )
 
-            return workload
+        return workload
 
     # ------------------------------------------------------------------
     # Internal helpers
