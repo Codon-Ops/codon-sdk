@@ -4,7 +4,8 @@ from __future__ import annotations
 import inspect
 import json
 from collections import defaultdict
-from typing import Any, Callable, Dict, Iterable, Mapping, Optional, Sequence, Tuple
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 from codon_sdk.agents import CodonWorkload
 from codon_sdk.agents.codon_workload import WorkloadRuntimeError
@@ -19,6 +20,39 @@ except Exception:  # pragma: no cover
 JsonDict = Dict[str, Any]
 RawNodeMap = Mapping[str, Any]
 RawEdgeIterable = Iterable[Tuple[str, str]]
+
+
+def _merge_runtime_configs(
+    base: Optional[Mapping[str, Any]],
+    override: Optional[Mapping[str, Any]],
+) -> Dict[str, Any]:
+    merged: Dict[str, Any] = {}
+    callbacks: List[Any] = []
+
+    for cfg in (base, override):
+        if not cfg:
+            continue
+        for key, value in cfg.items():
+            if key == "callbacks":
+                if isinstance(value, (list, tuple)):
+                    callbacks.extend(value)
+                else:
+                    callbacks.append(value)
+            else:
+                merged[key] = value
+
+    callbacks.append(LangGraphTelemetryCallback())
+    merged["callbacks"] = callbacks
+    return merged
+
+
+@dataclass(frozen=True)
+class LangGraphAdapterResult:
+    """Artifacts produced when adapting a LangGraph graph."""
+
+    workload: CodonWorkload
+    state_graph: Any
+    compiled_graph: Any
 
 
 class LangGraphWorkloadAdapter:
@@ -37,10 +71,28 @@ class LangGraphWorkloadAdapter:
         role_overrides: Optional[Mapping[str, str]] = None,
         entry_nodes: Optional[Sequence[str]] = None,
         max_reviews: Optional[int] = None,
-    ) -> CodonWorkload:
-        """Create a :class:`CodonWorkload` from a LangGraph ``StateGraph``."""
+        compile_kwargs: Optional[Mapping[str, Any]] = None,
+        runtime_config: Optional[Mapping[str, Any]] = None,
+        return_artifacts: bool = False,
+    ) -> Union[CodonWorkload, LangGraphAdapterResult]:
+        """Create a :class:`CodonWorkload` from a LangGraph ``StateGraph``.
 
-        compiled, raw_nodes, raw_edges = cls._normalise_graph(graph)
+        Parameters
+        ----------
+        graph
+            A LangGraph ``StateGraph`` (preferred) or compatible object exposing
+            ``nodes``/``edges``.
+        compile_kwargs
+            Optional keyword arguments forwarded to ``graph.compile(...)`` so
+            you can attach checkpointers, memory stores, or other runtime extras.
+        return_artifacts
+            When ``True`` return a :class:`LangGraphAdapterResult` containing the
+            workload, the original state graph, and the compiled graph.
+        """
+
+        compiled, raw_nodes, raw_edges = cls._normalise_graph(
+            graph, compile_kwargs=compile_kwargs
+        )
         node_map = cls._coerce_node_map(raw_nodes)
         raw_edge_list = cls._coerce_edges(raw_edges)
 
@@ -94,21 +146,34 @@ class LangGraphWorkloadAdapter:
             inferred = list({*inferred, *entry_from_virtual})
             workload._entry_nodes = inferred or list(node_map.keys())
 
-        workload._langgraph_compiled = compiled
+        setattr(workload, "langgraph_state_graph", graph)
+        setattr(workload, "langgraph_compiled_graph", compiled)
+        setattr(workload, "langgraph_compile_kwargs", dict(compile_kwargs or {}))
+        setattr(workload, "langgraph_runtime_config", dict(runtime_config or {}))
 
-        return workload
+        if return_artifacts:
+            return LangGraphAdapterResult(
+                workload=workload,
+                state_graph=graph,
+                compiled_graph=compiled,
+            )
+
+            return workload
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
     @staticmethod
-    def _normalise_graph(graph: Any) -> Tuple[Any, Any, Any]:
+    def _normalise_graph(
+        graph: Any, *, compile_kwargs: Optional[Mapping[str, Any]] = None
+    ) -> Tuple[Any, Any, Any]:
         """Return compiled graph plus raw node/edge structures."""
 
         raw_nodes, raw_edges = LangGraphWorkloadAdapter._extract_nodes_edges(graph)
         compiled = graph
         if hasattr(graph, "compile"):
-            compiled = graph.compile()
+            kwargs = dict(compile_kwargs or {})
+            compiled = graph.compile(**kwargs)
         comp_nodes, comp_edges = LangGraphWorkloadAdapter._extract_nodes_edges(compiled)
 
         nodes = raw_nodes or comp_nodes
@@ -250,18 +315,22 @@ class LangGraphWorkloadAdapter:
 
         decorator = track_node(node_name=node_name, role=role)
 
-        async def invoke_callable(state: Any) -> Any:
-            callback_config = {"callbacks": [LangGraphTelemetryCallback()]}
+        async def invoke_callable(state: Any, config: Optional[Mapping[str, Any]]) -> Any:
             if hasattr(runnable, "ainvoke"):
                 try:
-                    return await runnable.ainvoke(state, config=callback_config)
+                    if config:
+                        return await runnable.ainvoke(state, config=config)
+                    return await runnable.ainvoke(state)
                 except TypeError:
                     return await runnable.ainvoke(state)
             if inspect.iscoroutinefunction(runnable):
                 return await runnable(state)
             if hasattr(runnable, "invoke"):
                 try:
-                    result = runnable.invoke(state, config=callback_config)
+                    if config:
+                        result = runnable.invoke(state, config=config)
+                    else:
+                        result = runnable.invoke(state)
                 except TypeError:
                     result = runnable.invoke(state)
                 if inspect.isawaitable(result):
@@ -281,7 +350,14 @@ class LangGraphWorkloadAdapter:
             else:
                 state = message
 
-            result = await invoke_callable(state)
+            workload = getattr(runtime, "_workload", None)
+            base_config = None
+            if workload is not None:
+                base_config = getattr(workload, "langgraph_runtime_config", None)
+            invocation_config = context.get("langgraph_config") if isinstance(context, Mapping) else None
+            config = _merge_runtime_configs(base_config, invocation_config)
+
+            result = await invoke_callable(state, config)
 
             if isinstance(result, Mapping):
                 next_state: JsonDict = {**state, **result}

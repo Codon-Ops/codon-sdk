@@ -147,6 +147,14 @@ The ledger records each iteration through the loop, and `runtime.state` tracks i
 
 ---
 
+## Adapter Options & Artifacts
+- Use `compile_kwargs={...}` when calling `LangGraphWorkloadAdapter.from_langgraph(...)` to compile your graph with checkpointers, memory stores, or any other LangGraph runtime extras. The adapter still inspects the pre-compiled graph for node metadata while compiling with the provided extras so the runtime is ready to go.
+- Set `return_artifacts=True` to receive a `LangGraphAdapterResult` containing the `CodonWorkload`, the original state graph, and the compiled graph. This makes it easy to hand both artifacts to downstream systems (e.g., background runners) without re-compiling.
+- Provide `runtime_config={...}` during adaptation to establish default invocation options (e.g., base callbacks, tracing settings). At execution time, pass `langgraph_config={...}` to `workload.execute(...)` to layer per-run overrides; both configs are merged and supplied alongside Codon’s telemetry callback.
+- Regardless of the return value, the resulting workload exposes `langgraph_state_graph`, `langgraph_compiled_graph`, `langgraph_compile_kwargs`, and `langgraph_runtime_config` for quick access to the underlying LangGraph objects.
+
+---
+
 ## Telemetry & Audit Integration
 - Call `initialize_telemetry(service_name=...)` once during process startup to export spans via OTLP.
 - Each node span now carries workload metadata (`codon.workload.id`, `codon.workload.run_id`, `codon.workload.logic_id`, `codon.workload.deployment_id`, `codon.organization.id`) so traces can be rolled up by workload, deployment, or organization without joins.

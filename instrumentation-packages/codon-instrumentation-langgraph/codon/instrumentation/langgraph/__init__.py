@@ -25,6 +25,7 @@ __all__ = [
     "initialize_telemetry",
     "track_node",
     "LangGraphWorkloadAdapter",
+    "LangGraphAdapterResult",
     "current_invocation",
     "LangGraphTelemetryCallback",
 ]
@@ -432,5 +433,5 @@ def track_node(
     return decorator
 
 
-from .adapter import LangGraphWorkloadAdapter  # noqa: E402  # isort: skip
+from .adapter import LangGraphAdapterResult, LangGraphWorkloadAdapter  # noqa: E402  # isort: skip
 from .callbacks import LangGraphTelemetryCallback  # noqa: E402  # isort: skip
