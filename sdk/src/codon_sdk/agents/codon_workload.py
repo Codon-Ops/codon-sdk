@@ -2,13 +2,30 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import inspect
 import threading
+import queue
 from collections import defaultdict, deque
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Deque, DefaultDict, Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import (
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Deque,
+    DefaultDict,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+)
 from uuid import uuid4
 
 from codon_sdk.instrumentation.schemas.logic_id import (
@@ -70,6 +87,15 @@ class NodeExecutionRecord:
     result: Any
     started_at: datetime
     finished_at: datetime
+
+
+@dataclass(frozen=True)
+class StreamEvent:
+    """Event emitted while a workload is executing."""
+
+    event_type: str
+    data: Dict[str, Any]
+    timestamp: datetime = field(default_factory=_utcnow)
 
 
 @dataclass
@@ -137,6 +163,7 @@ class _RuntimeHandle:
         ledger: List[AuditEvent],
         state: Dict[str, Any],
         telemetry: NodeTelemetryPayload,
+        schedule_event: Callable[[str, Dict[str, Any]], None],
     ) -> None:
         self._workload = workload
         self._current_node = current_node
@@ -147,6 +174,7 @@ class _RuntimeHandle:
         self._stop_requested = False
         self._emissions = 0
         self._telemetry = telemetry
+        self._schedule_event = schedule_event
 
     @property
     def state(self) -> Dict[str, Any]:
@@ -201,6 +229,15 @@ class _RuntimeHandle:
                 target_node=None,
                 metadata=metadata or {},
             )
+        )
+        self._schedule_event(
+            "runtime_event",
+            {
+                "node": self._current_node,
+                "token_id": self._token.id,
+                "event_type": event_type,
+                "metadata": metadata or {},
+            },
         )
 
     def stop(self) -> None:
@@ -333,6 +370,7 @@ class CodonWorkload(Workload):
         deployment_id: str,
         entry_nodes: Optional[Sequence[str]] = None,
         max_steps: int = 1000,
+        event_handler: Optional[Callable[[StreamEvent], Awaitable[None]]] = None,
         **kwargs: Any,
     ) -> ExecutionReport:
         if not deployment_id:
@@ -370,8 +408,20 @@ class CodonWorkload(Workload):
 
         ledger: List[AuditEvent] = []
         records: DefaultDict[str, List[NodeExecutionRecord]] = defaultdict(list)
-        queue: Deque[Tuple[str, Token]] = deque()
+        queue_deque: Deque[Tuple[str, Token]] = deque()
         state: Dict[str, Any] = {}
+
+        loop = asyncio.get_running_loop()
+
+        async def publish_event(event_type: str, **data: Any) -> None:
+            if event_handler is None:
+                return
+            await event_handler(StreamEvent(event_type=event_type, data=data))
+
+        def schedule_event(event_type: str, data: Dict[str, Any]) -> None:
+            if event_handler is None:
+                return
+            loop.create_task(event_handler(StreamEvent(event_type=event_type, data=data)))
 
         def enqueue(
             source_node: Optional[str],
@@ -380,7 +430,7 @@ class CodonWorkload(Workload):
             *,
             audit_metadata: Dict[str, Any],
         ) -> None:
-            queue.append((target_node, token))
+            queue_deque.append((target_node, token))
             ledger.append(
                 AuditEvent(
                     event_type="token_enqueued",
@@ -393,6 +443,16 @@ class CodonWorkload(Workload):
                         **audit_metadata,
                     },
                 )
+            )
+            schedule_event(
+                "token_enqueued",
+                {
+                    "source_node": source_node,
+                    "target_node": target_node,
+                    "token_id": token.id,
+                    "payload": token.payload,
+                    "metadata": {"payload_repr": repr(token.payload), **audit_metadata},
+                },
             )
 
         for node in active_entry_nodes:
@@ -407,8 +467,8 @@ class CodonWorkload(Workload):
 
         steps = 0
 
-        while queue:
-            node_name, token = queue.popleft()
+        while queue_deque:
+            node_name, token = queue_deque.popleft()
             ledger.append(
                 AuditEvent(
                     event_type="token_dequeued",
@@ -418,6 +478,13 @@ class CodonWorkload(Workload):
                     target_node=node_name,
                     metadata={"payload_repr": repr(token.payload)},
                 )
+            )
+            await publish_event(
+                "token_dequeued",
+                source_node=token.origin,
+                target_node=node_name,
+                token_id=token.id,
+                payload=token.payload,
             )
 
             if steps >= max_steps:
@@ -452,9 +519,16 @@ class CodonWorkload(Workload):
                 ledger=ledger,
                 state=state,
                 telemetry=telemetry,
+                schedule_event=schedule_event,
             )
 
             started_at = _utcnow()
+            await publish_event(
+                "node_started",
+                node=node_name,
+                token_id=token.id,
+                payload=token.payload,
+            )
             try:
                 result = node_callable(token.payload, runtime=handle, context=context)
                 if inspect.isawaitable(result):
@@ -471,6 +545,14 @@ class CodonWorkload(Workload):
                         target_node=None,
                         metadata={"exception": repr(exc)},
                     )
+                )
+                schedule_event(
+                    "node_failed",
+                    {
+                        "node": node_name,
+                        "token_id": token.id,
+                        "exception": repr(exc),
+                    },
                 )
                 raise WorkloadRuntimeError(
                     f"Node '{node_name}' execution failed"
@@ -503,6 +585,13 @@ class CodonWorkload(Workload):
                     },
                 )
             )
+            await publish_event(
+                "node_completed",
+                node=node_name,
+                token_id=token.id,
+                result=result,
+                emissions=handle.emissions,
+            )
 
             if handle.stop_requested:
                 ledger.append(
@@ -515,14 +604,24 @@ class CodonWorkload(Workload):
                         metadata={"reason": "stop_requested"},
                     )
                 )
+                schedule_event(
+                    "runtime_stopped",
+                    {
+                        "node": node_name,
+                        "token_id": token.id,
+                        "reason": "stop_requested",
+                    },
+                )
                 break
 
-        return ExecutionReport(
+        report = ExecutionReport(
             results=dict(records),
             ledger=ledger,
             run_id=run_id,
             context=context,
         )
+        await publish_event("workflow_finished", report=report)
+        return report
 
     def execute(
         self,
@@ -542,6 +641,112 @@ class CodonWorkload(Workload):
                 **kwargs,
             )
         )
+
+    async def execute_streaming_async(
+        self,
+        payload: Any,
+        *,
+        deployment_id: str,
+        entry_nodes: Optional[Sequence[str]] = None,
+        max_steps: int = 1000,
+        **kwargs: Any,
+    ) -> AsyncIterator[StreamEvent]:
+        queue_async: asyncio.Queue[Any] = asyncio.Queue()
+        sentinel = object()
+        error: List[BaseException] = []
+
+        async def handler(event: StreamEvent) -> None:
+            await queue_async.put(event)
+
+        async def runner() -> None:
+            try:
+                await self.execute_async(
+                    payload,
+                    deployment_id=deployment_id,
+                    entry_nodes=entry_nodes,
+                    max_steps=max_steps,
+                    event_handler=handler,
+                    **kwargs,
+                )
+            except Exception as exc:  # pragma: no cover - surfaced to consumer
+                error.append(exc)
+            finally:
+                await queue_async.put(sentinel)
+
+        task = asyncio.create_task(runner())
+
+        try:
+            while True:
+                item = await queue_async.get()
+                if item is sentinel:
+                    break
+                yield item
+            if error:
+                raise error[0]
+        finally:
+            if not task.done():
+                task.cancel()
+                with contextlib.suppress(Exception):
+                    await task
+
+    def execute_streaming(
+        self,
+        payload: Any,
+        *,
+        deployment_id: str,
+        entry_nodes: Optional[Sequence[str]] = None,
+        max_steps: int = 1000,
+        **kwargs: Any,
+    ) -> Iterator[StreamEvent]:
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+        else:
+            raise RuntimeError(
+                "execute_streaming cannot be called from an active event loop; "
+                "use execute_streaming_async instead"
+            )
+
+        q: "queue.Queue[Any]" = queue.Queue()
+        sentinel = object()
+        error: List[BaseException] = []
+
+        async def producer() -> None:
+            try:
+                async for event in self.execute_streaming_async(
+                    payload,
+                    deployment_id=deployment_id,
+                    entry_nodes=entry_nodes,
+                    max_steps=max_steps,
+                    **kwargs,
+                ):
+                    q.put(event)
+            except Exception as exc:  # pragma: no cover - surfaced to consumer
+                error.append(exc)
+            finally:
+                q.put(sentinel)
+
+        def run_loop() -> None:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            try:
+                loop.run_until_complete(producer())
+            finally:
+                loop.close()
+
+        thread = threading.Thread(target=run_loop, daemon=True)
+        thread.start()
+        try:
+            while True:
+                item = q.get()
+                if item is sentinel:
+                    break
+                yield item
+            if error:
+                raise error[0]
+        finally:
+            thread.join()
 
     def _compute_agent_class_id(self) -> str:
         meta = self.metadata

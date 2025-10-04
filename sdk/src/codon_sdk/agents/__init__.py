@@ -5,6 +5,7 @@ from .codon_workload import (
     CodonWorkload,
     ExecutionReport,
     NodeExecutionRecord,
+    StreamEvent,
     WorkloadRegistrationError,
     WorkloadRuntimeError,
 )
@@ -19,4 +20,5 @@ __all__ = [
     "ExecutionReport",
     "NodeExecutionRecord",
     "AuditEvent",
+    "StreamEvent",
 ]

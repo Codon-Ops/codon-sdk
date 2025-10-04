@@ -199,3 +199,32 @@ def test_execution_context_includes_workload_identifiers(monkeypatch):
     assert captured_context["workload_name"] == "ContextAgent"
     assert captured_context["workload_version"] == "1.0.0"
     assert captured_context["deployment_id"] == "dev-west"
+
+
+def test_execute_streaming_sync(simple_workload):
+    events = list(
+        simple_workload.execute_streaming(
+            {"text": "hello codon"}, deployment_id="dev"
+        )
+    )
+    event_types = [event.event_type for event in events]
+    assert "node_completed" in event_types
+    assert event_types[-1] == "workflow_finished"
+    report = events[-1].data["report"]
+    assert report.node_results("count")[-1] == 2
+
+
+def test_execute_streaming_async(simple_workload):
+    async def collect():
+        collected = []
+        async for event in simple_workload.execute_streaming_async(
+            {"text": "hello codon"}, deployment_id="dev"
+        ):
+            collected.append(event)
+        return collected
+
+    events = asyncio.run(collect())
+    event_types = [event.event_type for event in events]
+    assert "token_dequeued" in event_types
+    assert "node_completed" in event_types
+    assert event_types[-1] == "workflow_finished"
