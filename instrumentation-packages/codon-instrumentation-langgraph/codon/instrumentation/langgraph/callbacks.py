@@ -187,6 +187,9 @@ class LangGraphTelemetryCallback(BaseCallbackHandler):
         if response_metadata:
             invocation.add_network_call(dict(response_metadata))
 
+        # Debugging
+        print(f"Payload: {payload}")
+
 
 def _extract_model_info(payload: Mapping[str, Any]) -> tuple[Optional[Any], Optional[Any]]:
     identifiers = (
