@@ -313,7 +313,12 @@ class LangGraphWorkloadAdapter:
 
         runnable = cls._unwrap_runnable(runnable)
 
-        decorator = track_node(node_name=node_name, role=role)
+        nodespec_target = cls._nodespec_target(runnable)
+        decorator = track_node(
+            node_name=node_name,
+            role=role,
+            introspection_target=nodespec_target,
+        )
 
         async def invoke_callable(state: Any, config: Optional[Mapping[str, Any]]) -> Any:
             if hasattr(runnable, "ainvoke"):
@@ -410,6 +415,28 @@ class LangGraphWorkloadAdapter:
             current = candidate
 
         return runnable
+
+    @staticmethod
+    def _nodespec_target(runnable: Any) -> Optional[Callable[..., Any]]:
+        """Best-effort selection of the callable to analyze for NodeSpec metadata."""
+
+        if runnable is None:
+            return None
+
+        for attr in ("ainvoke", "invoke"):
+            candidate = getattr(runnable, attr, None)
+            if candidate and callable(candidate):
+                return candidate
+
+        if inspect.isfunction(runnable) or inspect.ismethod(runnable):
+            return runnable
+
+        if callable(runnable):
+            call_method = getattr(runnable, "__call__", None)
+            if call_method and callable(call_method):
+                return call_method
+
+        return runnable if callable(runnable) else None
 
     @staticmethod
     def _build_successor_map(edges: Sequence[Tuple[str, str]]) -> Dict[str, Sequence[str]]:

@@ -5,7 +5,7 @@ import time
 from abc import ABC, abstractmethod
 from contextvars import ContextVar
 from functools import wraps
-from typing import Any, Dict, List, Mapping, Optional, Sequence
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
@@ -318,13 +318,15 @@ def track_node(
     role: str,
     model_name: Optional[str] = None,
     model_version: Optional[str] = None,
+    introspection_target: Optional[Callable[..., Any]] = None,
 ):
     def decorator(func):
+        spec_callable = introspection_target or func
         nodespec = NodeSpec(
             org_namespace=ORG_NAMESPACE,
             name=node_name,
             role=role,
-            callable=func,
+            callable=spec_callable,
             model_name=model_name,
             model_version=model_version,
         )

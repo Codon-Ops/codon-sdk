@@ -75,6 +75,13 @@ def test_adapter_returns_artifacts_with_compile_kwargs():
     node_names = {spec.name for spec in workload.nodes}
     assert node_names == {"start", "end"}
 
+    start_spec = next(spec for spec in workload.nodes if spec.name == "start")
+    end_spec = next(spec for spec in workload.nodes if spec.name == "end")
+
+    assert "dummy_start" in start_spec.callable_signature
+    assert "node_callable" not in start_spec.callable_signature
+    assert "dummy_end" in end_spec.callable_signature
+
 
 class RecordingRunnable:
     def __init__(self):
@@ -121,3 +128,7 @@ def test_runtime_config_merges_callbacks():
     assert callbacks[0] == "base"
     assert callbacks[1] == "call"
     assert isinstance(callbacks[2], LangGraphTelemetryCallback)
+
+    start_spec = next(spec for spec in workload.nodes if spec.name == "start")
+    assert start_spec.callable_signature.startswith("invoke(")
+    assert "config" in start_spec.callable_signature
