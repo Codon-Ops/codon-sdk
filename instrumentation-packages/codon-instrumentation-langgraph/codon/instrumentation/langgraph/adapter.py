@@ -118,12 +118,13 @@ class LangGraphWorkloadAdapter:
 
         role_overrides = role_overrides or {}
 
-        for node_name, runnable in node_map.items():
+        for node_name, (runnable, original_callable) in node_map.items():
             role = cls._derive_role(node_name, runnable, role_overrides)
             instrumented_callable = cls._wrap_node(
                 node_name=node_name,
                 role=role,
                 runnable=runnable,
+                original_callable=original_callable,
                 successors=tuple(successors.get(node_name, ())),
             )
             workload.add_node(
@@ -214,49 +215,89 @@ class LangGraphWorkloadAdapter:
         return nodes, edges
 
     @staticmethod
-    def _coerce_node_map(nodes: Any) -> Dict[str, Any]:
+    def _coerce_node_map(nodes: Any) -> Dict[str, Tuple[Any, Optional[Callable[..., Any]]]]:
         if isinstance(nodes, Mapping):
-            result: Dict[str, Any] = {}
+            result: Dict[str, Tuple[Any, Optional[Callable[..., Any]]]] = {}
             for name, data in nodes.items():
-                result[name] = LangGraphWorkloadAdapter._select_runnable(name, data)
+                result[name] = LangGraphWorkloadAdapter._select_node_components(name, data)
             return result
 
-        result: Dict[str, Any] = {}
+        result: Dict[str, Tuple[Any, Optional[Callable[..., Any]]]] = {}
         for item in nodes:
             if isinstance(item, tuple) and len(item) >= 2:
                 name = item[0]
                 data = item[1]
-                result[name] = LangGraphWorkloadAdapter._select_runnable(name, data)
+                result[name] = LangGraphWorkloadAdapter._select_node_components(name, data)
             else:
                 raise ValueError(f"Unrecognized LangGraph node entry: {item!r}")
 
         return result
 
     @staticmethod
-    def _select_runnable(name: str, data: Any) -> Any:
+    def _select_node_components(
+        name: str, data: Any
+    ) -> Tuple[Any, Optional[Callable[..., Any]]]:
+        runnable: Optional[Any] = None
+        original: Optional[Callable[..., Any]] = None
+
+        def consider(candidate: Any) -> None:
+            nonlocal runnable, original
+            if candidate is None:
+                return
+
+            if original is None:
+                if inspect.isfunction(candidate) or inspect.ismethod(candidate):
+                    original = candidate  # developer-authored callable
+                else:
+                    wrapped = getattr(candidate, "__wrapped__", None)
+                    if callable(wrapped):
+                        original = wrapped
+
+            if runnable is None:
+                if hasattr(candidate, "ainvoke") or hasattr(candidate, "invoke"):
+                    runnable = candidate
+                elif callable(candidate):
+                    runnable = candidate
+
+        consider(data)
+
         candidates: list[Any] = []
-
-        if callable(data) or hasattr(data, "ainvoke") or hasattr(data, "invoke"):
-            return data
-
         if isinstance(data, Mapping):
-            for key in ("callable", "node", "value", "runnable"):
+            for key in ("callable", "node", "value", "runnable", "invoke", "ainvoke"):
                 if key in data and data[key] is not None:
                     candidates.append(data[key])
         else:
-            for attr in ("callable", "node", "value", "runnable", "wrapped", "inner"):
+            for attr in (
+                "callable",
+                "node",
+                "value",
+                "runnable",
+                "wrapped",
+                "inner",
+                "invoke",
+                "ainvoke",
+            ):
                 if hasattr(data, attr):
                     candidate = getattr(data, attr)
                     if candidate is not None and candidate is not data:
                         candidates.append(candidate)
 
         for candidate in candidates:
-            if candidate is None:
-                continue
-            if callable(candidate) or hasattr(candidate, "ainvoke") or hasattr(candidate, "invoke"):
-                return candidate
+            consider(candidate)
 
-        raise WorkloadRuntimeError(f"Node '{name}' is not callable")
+        if runnable is None:
+            runnable = original
+
+        if runnable is None:
+            raise WorkloadRuntimeError(f"Node '{name}' is not callable")
+
+        if original is None:
+            # fall back to whatever introspection heuristics we already have
+            candidate_target = LangGraphWorkloadAdapter._nodespec_target(runnable)
+            if inspect.isfunction(candidate_target) or inspect.ismethod(candidate_target):
+                original = candidate_target
+
+        return runnable, original
 
     @staticmethod
     def _coerce_edges(edges: Any) -> Sequence[Tuple[str, str]]:
@@ -307,13 +348,14 @@ class LangGraphWorkloadAdapter:
         node_name: str,
         role: str,
         runnable: Any,
+        original_callable: Optional[Callable[..., Any]],
         successors: Sequence[str],
     ) -> Callable[..., Any]:
         from codon.instrumentation.langgraph import track_node
 
         runnable = cls._unwrap_runnable(runnable)
 
-        nodespec_target = cls._nodespec_target(runnable)
+        nodespec_target = original_callable or cls._nodespec_target(runnable)
         decorator = track_node(
             node_name=node_name,
             role=role,

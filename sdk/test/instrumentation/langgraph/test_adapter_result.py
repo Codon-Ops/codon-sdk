@@ -96,6 +96,14 @@ def passthrough(state):
     return state
 
 
+class NodeWrapper:
+    def __init__(self, fn):
+        self.value = fn
+
+    def invoke(self, state):
+        return self.value(state)
+
+
 def test_runtime_config_merges_callbacks():
     recording = RecordingRunnable()
     nodes = {"start": recording, "end": passthrough}
@@ -132,3 +140,20 @@ def test_runtime_config_merges_callbacks():
     start_spec = next(spec for spec in workload.nodes if spec.name == "start")
     assert start_spec.callable_signature.startswith("invoke(")
     assert "config" in start_spec.callable_signature
+
+
+def test_nodespec_prefers_original_callable_from_wrappers():
+    wrapper = NodeWrapper(dummy_start)
+    graph = FakeGraph(nodes={"start": wrapper, "end": dummy_end})
+
+    result = LangGraphWorkloadAdapter.from_langgraph(
+        graph,
+        name="WrappedAgent",
+        version="0.0.3",
+        return_artifacts=True,
+    )
+
+    workload = result.workload
+
+    start_spec = next(spec for spec in workload.nodes if spec.name == "start")
+    assert start_spec.callable_signature.startswith("dummy_start(")
