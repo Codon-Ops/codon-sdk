@@ -26,6 +26,7 @@ __all__ = [
     "track_node",
     "LangGraphWorkloadAdapter",
     "LangGraphAdapterResult",
+    "NodeOverride",
     "current_invocation",
     "LangGraphTelemetryCallback",
 ]
@@ -319,9 +320,11 @@ def track_node(
     model_name: Optional[str] = None,
     model_version: Optional[str] = None,
     introspection_target: Optional[Callable[..., Any]] = None,
+    nodespec_kwargs: Optional[Mapping[str, Any]] = None,
 ):
     def decorator(func):
         spec_callable = introspection_target or func
+        spec_kwargs = dict(nodespec_kwargs or {})
         nodespec = NodeSpec(
             org_namespace=ORG_NAMESPACE,
             name=node_name,
@@ -329,6 +332,7 @@ def track_node(
             callable=spec_callable,
             model_name=model_name,
             model_version=model_version,
+            **spec_kwargs,
         )
         _instrumented_nodes.append(nodespec)
 
@@ -435,5 +439,9 @@ def track_node(
     return decorator
 
 
-from .adapter import LangGraphAdapterResult, LangGraphWorkloadAdapter  # noqa: E402  # isort: skip
+from .adapter import (  # noqa: E402  # isort: skip
+    LangGraphAdapterResult,
+    LangGraphWorkloadAdapter,
+    NodeOverride,
+)
 from .callbacks import LangGraphTelemetryCallback  # noqa: E402  # isort: skip

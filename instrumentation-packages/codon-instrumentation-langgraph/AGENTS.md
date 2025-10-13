@@ -52,22 +52,26 @@ print(f"Ledger entries: {len(report.ledger)}")
 The adapter inspects your graph to extract:
 - **Name:** from the LangGraph node key.
 - **Callable:** the runnable/function associated with the node.
-- **Role:** derived from node metadata or the node name (can be overridden).
+- **Role:** derived from node metadata or the node name.
 
-You can influence roles by passing a `role_overrides` dictionary:
+Need finer control? Provide a `node_overrides` mapping where each entry is either a plain dict or `NodeOverride` object. You can specify the role, callable used for `NodeSpec` introspection, model metadata, and explicit schemas:
 ```python
 workload = LangGraphWorkloadAdapter.from_langgraph(
     langgraph,
     name="SupportBot",
     version="2.3.0",
-    role_overrides={
-        "plan": "planner",
-        "write": "author",
-        "critique": "qa",
+    node_overrides={
+        "plan": {
+            "role": "planner",
+            "callable": plan_node,
+            "model_name": "gpt-4.1-mini",
+        },
+        "write": {"role": "author"},
+        "critique": {"role": "qa", "output_schema": "CritiqueResult"},
     },
 )
 ```
-These roles propagate to telemetry span attributes (e.g., `codon.nodespec.role`).
+Any fields you omit fall back to the adapter defaults. Overrides propagate to telemetry span attributes (e.g., `codon.nodespec.role`, `codon.nodespec.model_name`) and the generated `NodeSpec` entries.
 
 ---
 
