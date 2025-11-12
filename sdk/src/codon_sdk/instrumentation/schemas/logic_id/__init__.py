@@ -1,3 +1,17 @@
+# Copyright 2025 Codon, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """Logic for creating a Logic ID based on the agent's logic and classification"""
 import hashlib
 import json
@@ -18,7 +32,7 @@ class NodeEdge(BaseModel):
 
 class Topology(BaseModel):
   edges: List[NodeEdge] = Field(default_factory=list, description="A list of edges between nodes describing a workload")
-  
+
 class LogicRequest(BaseModel):
   agent_class: AgentClass = Field("The Agentic Class of the Logic Workload")
   nodes: List[NodeSpec]

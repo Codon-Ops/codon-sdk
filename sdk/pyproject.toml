@@ -5,7 +5,8 @@ build-backend = "setuptools.build_meta"
 [project]
 # This is the main SDK package name
 name = "codon_sdk"
-version = "0.1.0"
+version = "0.1.0a1"
+license = "Apache-2.0"
 authors = [
   { name="Sheldon Gilbert", email="sheldon@codonops.ai"},
   { name="Martin Arroyo", email="martin@codonops.ai" },
@@ -15,7 +16,8 @@ readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
 # Core dependencies needed by every part of the SDK
