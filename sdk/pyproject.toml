@@ -17,7 +17,6 @@ requires-python = ">=3.8"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Development Status :: 3 - Alpha",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
 # Core dependencies needed by every part of the SDK
