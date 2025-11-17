@@ -18,7 +18,7 @@ Codon Workload is the heart of our emerging agentic framework. The principles th
    Workloads must remain portable across environments. The same logic graph should run locally, in CI, or in production without re-authoring code. Runtime concerns (telemetry, persistence, scaling) should be injectable, not baked into agents.
 
 2. **Audit First**  
-   Every agent run should be replayable. Provenancewho emitted a token, when, with which payloadneeds to be preserved. This is not just a compliance checkbox; it is foundational for trust, debugging, and postmortems.
+   Every agent run should be replayable. Provenance—who emitted a token, when, with which payload—needs to be preserved. This is not just a compliance checkbox; it is foundational for trust, debugging, and postmortems.
 
 3. **Composable Runtime**  
    The framework provides a default execution engine, but its components (token queues, state store, audit sink) are intended to be swappable. Teams should be able to plug in bespoke back-ends without rewriting agent logic.
