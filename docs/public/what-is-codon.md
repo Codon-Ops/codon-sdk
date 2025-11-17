@@ -1,12 +1,38 @@
 # What is the Codon SDK?
 
-Codon SDK provides common building blocks for Codon agents, including immutable node specifications, logic ID generation, and a shared telemetry vocabulary. This repository also houses framework-specific instrumentation packages that emit OpenTelemetry spans enriched with Codon metadata.
+## Why Codon SDK?
 
-## Key Features
-- Immutable `NodeSpec` records that introspect Python callables and generate stable SHA-256 identifiers tied to organization, role, and model metadata.
-- Canonical logic request hashing that deduplicates workloads by agent class, participating nodes, and topology.
-- OpenTelemetry span attribute catalog for agent runs, tools, LLMs, and vector database interactions.
-- Pluggable instrumentation packages (e.g., LangGraph) that decorate nodes, capture latency, and forward spans to OTLP endpoints.
+Building AI agents is one thing. Operating them reliably in production is another. Most frameworks help you create agents, but leave critical gaps when it comes to audit trails, observability, and deployment portability. How do you debug a [multi-step agent workflow](building-from-scratch.md)? How do you track costs and performance across different models and API calls? How do you ensure compliance in regulated environments? How do you deploy the same agent logic across different environments without rewriting code?
+
+## What It Does
+
+Codon SDK bridges this gap by providing production-ready infrastructure for AI agents. It wraps your existing framework code with [comprehensive observability](instrumentation/), audit trails, and deployment flexibility—without forcing you to abandon the tools you already know.
+
+The SDK provides common building blocks including immutable node specifications, logic ID generation, and a shared telemetry vocabulary. [Framework-specific instrumentation packages](instrumentation/) emit OpenTelemetry spans enriched with Codon metadata.
+
+## Core Capabilities
+
+**Audit-First Architecture**
+- Every agent run generates a complete, replayable audit trail
+- Immutable provenance tracking for every decision and data transformation
+- Built for environments where you need to explain AI behavior
+
+**Framework-Agnostic Observability**
+- Instrument existing [LangGraph](instrumentation/langgraph.md), OpenAI, and other framework code with minimal changes
+- Standardized OpenTelemetry output works with any monitoring stack
+- [Pluggable instrumentation packages](instrumentation/) adapt to your current tools
+
+**Deterministic Identity System**
+- Stable SHA-256 identifiers for functions, workflows, and deployments
+- Enables reliable caching, deduplication, and version tracking
+- Same logic produces same identifiers across environments
+
+**Production-Ready Execution**
+- Portable logic that runs consistently from development to production
+- Flexible graph patterns supporting cycles, feedback loops, and streaming
+- Separation of agent logic from deployment-specific configurations
+
+[Get started with the core concepts →](getting-started.md)
 
 ## Design Philosophy
 
@@ -48,7 +74,19 @@ Codon Workload is the heart of our emerging agentic framework. The principles th
 
 ## Why This Matters
 
-- **Transparency**: By default we capture the entire "tape" of an agent run. Teams can replay what happened, not just infer from logs.
-- **Flexibility**: Agent authors are not boxed into DAG-only workflows. Loops, streaming, branching, and concurrent patterns are all viable.
-- **Extensibility**: The framework is not tied to a single broker or storage engine. You can start with an in-memory runtime and graduate to production-grade infrastructure without refactoring agent logic.
-- **Compliance Readiness**: We treat audit as a first-class feature, not an afterthought. As persistence lands, the logs will remain provable and verifiable across environments.
+**For Development Teams:**
+- **Faster debugging**: Complete visibility into multi-step agent workflows eliminates guesswork
+- **Framework flexibility**: Keep using [LangGraph](instrumentation/langgraph.md), OpenAI, or other tools you know—just add observability
+- **Reliable deployments**: Same agent logic runs consistently across development, staging, and production
+
+**For Operations Teams:**
+- **Production confidence**: Comprehensive monitoring and alerting for AI agent behavior
+- **Audit compliance**: Built-in provenance tracking meets regulatory requirements
+- **Infrastructure independence**: Standard OpenTelemetry output works with your existing monitoring stack
+
+[Explore detailed API documentation →](api-reference.md)
+
+**For Organizations:**
+- **Risk mitigation**: Full transparency into AI decision-making processes  
+- **Operational excellence**: Treat AI agents with the same rigor as traditional software systems
+- **Strategic flexibility**: Evolve your AI stack without being locked into specific vendors or frameworks

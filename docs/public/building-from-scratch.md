@@ -2,6 +2,27 @@
 
 If you're building agents from the ground up, CodonWorkload provides a flexible foundation for creating single-agent and multi-agent workflows with token-based execution and comprehensive audit trails.
 
+## The CodonWorkload Class
+
+CodonWorkload is the core class for building agents from scratch. It provides a workflow orchestrator specifically designed for AI agents, with built-in observability and compliance features.
+
+**Key capabilities:**
+- **Node registration**: Add Python functions as workflow steps
+- **Graph definition**: Connect nodes with directed edges to define execution flow
+- **Token-based execution**: Messages flow between nodes with full provenance tracking
+- **Audit trails**: Automatic recording of every step, decision, and data transformation
+- **Runtime operations**: Nodes can emit messages, record custom events, and share state
+
+## Key Concepts
+
+**Nodes**: Individual Python functions that perform specific tasks (e.g., "summarize", "validate", "format"). Each node receives input, processes it, and can emit output to other nodes.
+
+**Edges**: Directed connections between nodes that define how tokens (messages) flow through your workflow.
+
+**Tokens**: Immutable messages that carry data between nodes, each with unique provenance tracking.
+
+**Runtime**: The execution context that provides nodes access to operations like `runtime.emit()`, `runtime.record_event()`, and `runtime.state`.
+
 ## Single-Agent Workflow
 
 Here's a simple Q&A agent that processes a user question:
@@ -159,3 +180,32 @@ Each workload gets a deterministic Logic ID based on:
 - Graph topology (edges between nodes)
 
 Same workload structure = same Logic ID, enabling deduplication and version tracking.
+
+**Example: Logic ID Generation and Changes**
+```python
+# Based on test_codon_workload.py test patterns
+workload = CodonWorkload(name="TestWorkload", version="0.1.0")
+
+def simple_node(message, *, runtime, context):
+    return f"Result: {message['input']}"
+
+workload.add_node(simple_node, name="test_node", role="processor")
+
+print(f"Initial Logic ID: {workload.logic_id}")
+baseline_logic_id = workload.logic_id
+
+# Adding a node changes the Logic ID
+def echo_node(message, *, runtime, context):
+    return message
+
+workload.add_node(echo_node, name="echo", role="responder")
+workload.add_edge("test_node", "echo")
+
+print(f"After adding node: {workload.logic_id}")
+print(f"Logic ID changed? {workload.logic_id != baseline_logic_id}")  # True
+```
+
+This deterministic identification enables:
+- **Deduplication**: Skip redundant executions of the same logic
+- **Version tracking**: Compare agent iterations across deployments  
+- **Caching**: Store and retrieve results based on stable identifiers

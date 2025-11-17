@@ -51,50 +51,12 @@ OTEL_SERVICE_NAME=your-service-name
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 ```
 
-## Working with NodeSpec
-`NodeSpec` inspects Python callables to capture the function signature, type hints, and optional model metadata. It emits a deterministic SHA-256 ID that downstream systems can rely on.
+## Next Steps
 
-```python
-from codon_sdk.instrumentation.schemas.nodespec import NodeSpec
+Now that you have the SDK installed and configured, you can:
 
-@track_node("summarize", role="processor")
-def summarize(text: str) -> str:
-    ...
+- **Build from scratch**: Create custom agents with [CodonWorkload](building-from-scratch.md)
+- **Use existing frameworks**: Integrate with [LangGraph](instrumentation/langgraph.md) or other supported frameworks
+- **Learn the APIs**: Explore detailed documentation in the [API Reference](api-reference.md)
 
-# Alternatively, construct the NodeSpec directly
-nodespec = NodeSpec(
-    org_namespace="acme",
-    name="summarize",
-    role="processor",
-    callable=summarize,
-    model_name="gpt-4o",
-    model_version="2024-05-13",
-)
-print(nodespec.id)
-```
-
-`NodeSpec` requires type annotations to build JSON schemas for inputs and outputs. If annotations are missing, the generated schemas may be empty.
-
-## Generating Logic IDs
-Logic IDs canonicalize workload definitions so repeated submissions map to the same identifier.
-
-```python
-from codon_sdk.instrumentation.schemas.logic_id import (
-    AgentClass,
-    LogicRequest,
-    generate_logic_id,
-)
-
-logic_request = LogicRequest(
-    agent_class=AgentClass(
-        name="ReportAgent",
-        version="0.1.0",
-        description="Generates weekly status reports",
-    ),
-    nodes=[nodespec],
-)
-logic_id = generate_logic_id(logic_request)
-print(logic_id)  # Stable SHA-256 hash
-```
-
-The hash is deterministic because nodes and topology edges are sorted prior to serialization. This enables safe retries and caching.
+For detailed information about NodeSpec and Logic ID generation, see the [API Reference](api-reference.md).
