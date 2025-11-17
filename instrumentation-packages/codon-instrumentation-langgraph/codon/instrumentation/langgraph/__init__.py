@@ -65,6 +65,18 @@ class LangGraphWorkloadMixin(ABC):
 
 
 def initialize_telemetry(service_name: str = SERVICE_NAME or "") -> None:
+    """Initialize OpenTelemetry tracing with OTLP exporter.
+
+    Sets up a TracerProvider with BatchSpanProcessor and OTLPSpanExporter to 
+    export spans to an OTLP collector endpoint.
+
+    Args:
+        service_name: Name for the service in telemetry data. Defaults to 
+                     OTEL_SERVICE_NAME environment variable or empty string.
+
+    Example:
+        >>> initialize_telemetry(service_name="codon-langgraph-demo")
+    """
     # Set up service name
     resource = Resource(attributes={"service.name": service_name})
     # Set up TracerProvider & Exporter
@@ -322,6 +334,32 @@ def track_node(
     introspection_target: Optional[Callable[..., Any]] = None,
     nodespec_kwargs: Optional[Mapping[str, Any]] = None,
 ):
+    """Decorator to add telemetry instrumentation to a function.
+
+    When the decorated function executes, this decorator:
+    - Materializes a NodeSpec and captures its ID, signature, and schemas
+    - Wraps execution in an OpenTelemetry span (async and sync supported)  
+    - Records inputs, outputs, and wall-clock latency via standardized span attributes
+
+    Args:
+        node_name: Unique identifier for this node.
+        role: The node's role in the workflow.
+        model_name: Optional model identifier if this node uses an AI model.
+        model_version: Optional model version if this node uses an AI model.
+        introspection_target: Optional callable to introspect instead of decorated function.
+        nodespec_kwargs: Optional additional kwargs passed to NodeSpec constructor.
+
+    Returns:
+        The decorated function with telemetry instrumentation added.
+
+    Example:
+        >>> @track_node("retrieve_docs", role="retriever")
+        ... def retrieve_docs(query: str) -> List[str]:
+        ...     return ["doc1", "doc2"]
+
+    TODO: Document what 'role' parameter specifically represents
+    TODO: Clarify introspection_target use case and when to use it
+    """
     def decorator(func):
         spec_callable = introspection_target or func
         spec_kwargs = dict(nodespec_kwargs or {})

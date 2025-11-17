@@ -39,6 +39,14 @@ nodespec_env = NodeSpecEnv()
 
 
 class NodeSpec(BaseModel):
+    """Immutable specification that introspects Python callables and generates stable SHA-256 identifiers.
+
+    NodeSpec inspects Python callables to capture the function signature, type hints, and optional 
+    model metadata. It emits a deterministic SHA-256 ID that downstream systems can rely on.
+
+    NodeSpec requires type annotations to build JSON schemas for inputs and outputs. If annotations 
+    are missing, the generated schemas may be empty.
+    """
     model_config = ConfigDict(extra="forbid", frozen=True)
     id: str = Field(
         default=None, description="The NodeSpec ID generated from the NodeSpec."
@@ -81,6 +89,31 @@ class NodeSpec(BaseModel):
         model_version: Optional[str] = None,
         **kwargs,
     ):
+        """Create a NodeSpec by introspecting a Python callable.
+
+        Args:
+            name: The name of the node.
+            role: The role of the node.
+            callable: The Python function to introspect.
+            org_namespace: The namespace of the calling organization. Defaults to ORG_NAMESPACE env var.
+            model_name: The name of the model used in the node.
+            model_version: The version of the model currently used.
+            **kwargs: Additional fields for the NodeSpec.
+
+        Raises:
+            NodeSpecValidationError: If ORG_NAMESPACE environment variable not set.
+
+        Example:
+            >>> nodespec = NodeSpec(
+            ...     org_namespace="acme",
+            ...     name="summarize", 
+            ...     role="processor",
+            ...     callable=summarize_function,
+            ...     model_name="gpt-4o",
+            ...     model_version="2024-05-13"
+            ... )
+            >>> print(nodespec.id)
+        """
 
         callable_attrs = analyze_function(callable)
         namespace = org_namespace or os.getenv(nodespec_env.OrgNamespace)
