@@ -1,6 +1,6 @@
 # Building from Scratch
 
-If you're building agents from the ground up, CodonWorkload provides a flexible foundation for creating single-agent and multi-agent workflows with token-based execution and comprehensive audit trails.
+If you're building agents from the ground up, [CodonWorkload](api-reference.md#codon_sdkagentscodonworkload) provides a flexible foundation for creating single-agent and multi-agent workflows with token-based execution and comprehensive audit trails.
 
 ## The CodonWorkload Class
 
@@ -12,6 +12,8 @@ CodonWorkload is the foundation for building observable AI agents. Whether you b
 - **Token-based execution**: Messages flow between nodes with full provenance tracking
 - **Audit trails**: Automatic recording of every step, decision, and data transformation
 - **Runtime operations**: Nodes can emit messages, record custom events, and share state
+
+For complete method signatures and parameters, see the [API Reference](api-reference.md).
 
 ## Key Concepts
 
