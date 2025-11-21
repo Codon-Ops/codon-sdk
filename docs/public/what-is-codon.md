@@ -8,9 +8,9 @@ This gap means AI agent teams struggle to measure their runtime invocations, tra
 
 ## What It Does
 
-That's why Codon assigns Universal IDs to AI agents, intelligently encoding their logic through Node IDs and Logic IDs that persist across deployments. The SDK wraps your existing framework code with [comprehensive observability](instrumentation/), creating an immutable tape of agent actions that can be used for compliance monitoring, debugging, and cost optimization.
+That's why Codon assigns Universal IDs to AI agents, intelligently encoding their logic through Node IDs and Logic IDs that persist across deployments. The SDK wraps your existing framework code with [comprehensive observability](instrumentation/index.md), creating an immutable tape of agent actions that can be used for compliance monitoring, debugging, and cost optimization.
 
-The SDK provides common building blocks including immutable node specifications, logic ID generation, and a shared telemetry vocabulary. [Framework-specific instrumentation packages](instrumentation/) emit OpenTelemetry spans enriched with Codon metadata.
+The SDK provides common building blocks including immutable node specifications, logic ID generation, and a shared telemetry vocabulary. [Framework-specific instrumentation packages](instrumentation/index.md) emit OpenTelemetry spans enriched with Codon metadata.
 
 ## How Codon Works: Two-Layer Architecture
 

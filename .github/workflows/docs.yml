@@ -14,6 +14,9 @@ jobs:
         with:
           python-version: '3.x'
       - run: pip install mkdocs mkdocs-material 'mkdocstrings[python]' mkdocs-gen-files
+      # Install your packages so mkdocstrings can import them
+      - run: pip install -e sdk
+      - run: pip install -e instrumentation-packages/codon-instrumentation-langgraph
       - run: mkdocs build
       - uses: actions/deploy-pages@v2
         with:
