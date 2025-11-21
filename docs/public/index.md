@@ -12,5 +12,6 @@ Complete guide to building observable AI agents with the Codon SDK.
 
 ## Quick Start
 
-- **LangGraph users**: Start with [LangGraph Integration](instrumentation/langgraph.md)
-- **New to agent frameworks**: Begin with [Getting Started](getting-started.md)
+1. **[Getting Started](getting-started.md)** - Installation and environment setup
+2. **New to agent frameworks**: Create agents with [Building from Scratch](building-from-scratch.md)
+3. **LangGraph users**: Integrate existing code with [LangGraph Integration](instrumentation/langgraph.md)
