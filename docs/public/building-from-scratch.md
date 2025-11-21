@@ -167,6 +167,8 @@ Every workflow execution generates a comprehensive audit trail:
 - Custom events via `runtime.record_event()`
 - Execution context (deployment_id, logic_id, run_id)
 
+**Note:** Only fired nodes are represented in a workload run, so the complete workload definition may not be present in the workload run summary. Your audit trail shows actual execution paths, not all possible paths defined in your workflow.
+
 Access the audit ledger through the execution report:
 ```python
 for event in report.ledger:

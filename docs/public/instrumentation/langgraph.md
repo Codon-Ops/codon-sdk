@@ -40,6 +40,8 @@ self._graph = LangGraphWorkloadAdapter.from_langgraph(
 
 The adapter automatically infers nodes from your StateGraph, eliminating the need to manually instrument each node with decorators. This provides comprehensive telemetry out of the box.
 
+**Note:** Only fired nodes are represented in a workload run, so the complete workload definition may not be present in the workload run summary. This is particularly relevant for LangGraph workflows with conditional edges and branching logic—your execution reports will show actual paths taken, not all possible paths.
+
 ### Compile Keyword Arguments
 
 You can pass any LangGraph compile arguments through `compile_kwargs`:
