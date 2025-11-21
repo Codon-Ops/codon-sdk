@@ -23,7 +23,7 @@ with mkdocs_gen_files.open("api-reference.md", "w") as f:
 
 ### LangGraph Integration (`codon-instrumentation-langgraph`)
 
-::: codon.instrumentation.langgraph.track_node
-
 ::: codon.instrumentation.langgraph.initialize_telemetry
+
+::: codon.instrumentation.langgraph.LangGraphWorkloadAdapter
 """)

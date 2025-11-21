@@ -2,13 +2,21 @@
 
 ## Why Codon SDK?
 
-Building AI agents is one thing. Operating them reliably in production is another. Most frameworks help you create agents, but leave critical gaps when it comes to audit trails, observability, and deployment portability. How do you debug a [multi-step agent workflow](building-from-scratch.md)? How do you track costs and performance across different models and API calls? How do you ensure compliance in regulated environments? How do you deploy the same agent logic across different environments without rewriting code?
+There is currently no way to identify AI agents that persists between invocations or across deployment environments. Every time you deploy an AI agent, it gets a new identity. There's no way to track that your 'customer-support-bot-v2' in staging is the same logic as production, making cost analysis, performance tracking, and debugging nearly impossible.
+
+This gap means AI agent teams struggle to measure their runtime invocations, track usage metrics at the node-level, perform lineage reconstruction, enable cost attribution, and conduct debugging & reliability analytics across environments.
 
 ## What It Does
 
-Codon SDK bridges this gap by providing production-ready infrastructure for AI agents. It wraps your existing framework code with [comprehensive observability](instrumentation/), audit trails, and deployment flexibility—without forcing you to abandon the tools you already know.
+That's why Codon assigns Universal IDs to AI agents, intelligently encoding their logic through Node IDs and Logic IDs that persist across deployments. The SDK wraps your existing framework code with [comprehensive observability](instrumentation/), creating an immutable tape of agent actions that can be used for compliance monitoring, debugging, and cost optimization.
 
 The SDK provides common building blocks including immutable node specifications, logic ID generation, and a shared telemetry vocabulary. [Framework-specific instrumentation packages](instrumentation/) emit OpenTelemetry spans enriched with Codon metadata.
+
+## How Codon Works: Two-Layer Architecture
+
+**Layer 1: The Core SDK** - Generates stable Node IDs and Logic IDs from agent graphs, plus provides the Workload interface that establishes the contract all concrete implementations must follow to communicate with the data collection system.
+
+**Layer 2: The Instrumentation Libraries** - Framework-specific packages that leverage the Core SDK to "wrap" third-party frameworks with telemetry sensors. Our goal is to "meet developers where they are" by making it simple to bring your existing framework and still get the visibility and insights that Codon can offer.
 
 ## Core Capabilities
 

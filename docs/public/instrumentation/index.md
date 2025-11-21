@@ -8,8 +8,8 @@ Framework-specific instrumentation packages that emit OpenTelemetry spans enrich
 Seamlessly integrate your existing LangGraph StateGraphs with Codon telemetry and observability.
 
 - Automatic node instrumentation via `LangGraphWorkloadAdapter`
-- Manual function decoration with `@track_node`
 - OpenTelemetry span export with Codon metadata
+- Just a few lines of code integration
 
 ## Coming Soon
 

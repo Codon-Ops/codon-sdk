@@ -4,7 +4,7 @@ If you're building agents from the ground up, CodonWorkload provides a flexible 
 
 ## The CodonWorkload Class
 
-CodonWorkload is the core class for building agents from scratch. It provides a workflow orchestrator specifically designed for AI agents, with built-in observability and compliance features.
+CodonWorkload is the foundation for building observable AI agents. Whether you build from scratch or use frameworks like LangGraph, it gives your agents the ability to track their own performance, costs, and behavior over time.
 
 **Key capabilities:**
 - **Node registration**: Add Python functions as workflow steps
@@ -19,7 +19,7 @@ CodonWorkload is the core class for building agents from scratch. It provides a 
 
 **Edges**: Directed connections between nodes that define how tokens (messages) flow through your workflow.
 
-**Tokens**: Immutable messages that carry data between nodes, each with unique provenance tracking.
+**Tokens**: Immutable messages that carry data between nodes, each with unique provenance tracking. This creates an immutable tape of your agent's actions during invocation that can be used for compliance monitoring, audit, evaluation, debugging, and experimentation.
 
 **Runtime**: The execution context that provides nodes access to operations like `runtime.emit()`, `runtime.record_event()`, and `runtime.state`.
 

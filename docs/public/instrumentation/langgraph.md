@@ -47,29 +47,8 @@ You can pass any LangGraph compile arguments through `compile_kwargs`:
 - Memory configurations  
 - Custom compilation options
 
-## Manual Instrumentation with @track_node
-
-If you need more granular control over specific nodes, you can still use the `@track_node` decorator:
-
-```python
-from codon.instrumentation.langgraph import initialize_telemetry, track_node
-
-initialize_telemetry(service_name="codon-langgraph-demo")
-
-@track_node("retrieve_docs", role="retriever")
-def retrieve_docs(query: str) -> List[str]:
-    ...
-```
-
-When the decorated function executes, the LangGraph package:
-- materializes a `NodeSpec` and captures its ID, signature, and schemas
-- wraps execution in an OpenTelemetry span (async and sync supported)
-- records inputs, outputs, and wall-clock latency via standardized span attributes
-
-Spans are exported with `org.namespace`, `agent.framework.name`, and the Codon span names defined in `codon_sdk.instrumentation.schemas.telemetry.spans`.
-
 ## Best Practices
 
-1. **Use the adapter first**: Start with `LangGraphWorkloadAdapter.from_langgraph()` for automatic instrumentation
-2. **Add manual decorators sparingly**: Only use `@track_node` when you need specific control over certain nodes
-3. **Initialize telemetry early**: Call `initialize_telemetry()` before creating your workloads
+1. **Use the adapter**: `LangGraphWorkloadAdapter.from_langgraph()` provides comprehensive instrumentation with just a few lines of code
+2. **Initialize telemetry early**: Call `initialize_telemetry()` before creating your workloads
+3. **Leverage compile_kwargs**: Pass checkpointers and memory configurations through the adapter
