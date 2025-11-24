@@ -28,7 +28,7 @@ The SDK provides common building blocks including immutable node specifications,
 **Framework-Agnostic Observability**
 - Instrument existing [LangGraph](instrumentation/langgraph.md), OpenAI, and other framework code with minimal changes
 - Standardized OpenTelemetry output works with any monitoring stack
-- [Pluggable instrumentation packages](instrumentation/) adapt to your current tools
+- [Pluggable instrumentation packages](instrumentation/index.md) adapt to your current tools
 
 **Deterministic Identity System**
 - Stable SHA-256 identifiers for functions, workflows, and deployments

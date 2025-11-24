@@ -8,16 +8,20 @@ jobs:
     permissions:
       pages: write
       id-token: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
           python-version: '3.x'
       - run: pip install mkdocs mkdocs-material 'mkdocstrings[python]' mkdocs-gen-files
-      # Install your packages so mkdocstrings can import them
+      # Install packages so mkdocstrings can import them
       - run: pip install -e sdk
       - run: pip install -e instrumentation-packages/codon-instrumentation-langgraph
       - run: mkdocs build
-      - uses: actions/deploy-pages@v2
+      # Upload artifact for Pages
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: ./site
+      # Deploy from artifact
+      - uses: actions/deploy-pages@v4

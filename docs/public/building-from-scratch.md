@@ -1,6 +1,6 @@
 # Building from Scratch
 
-If you're building agents from the ground up, [CodonWorkload](api-reference.md#codon_sdkagentscodonworkload) provides a flexible foundation for creating single-agent and multi-agent workflows with token-based execution and comprehensive audit trails.
+If you're building agents from the ground up, [CodonWorkload](api-reference.md#codon_sdk.agents.CodonWorkload) provides a flexible foundation for creating single-agent and multi-agent workflows with token-based execution and comprehensive audit trails.
 
 ## The CodonWorkload Class
 
