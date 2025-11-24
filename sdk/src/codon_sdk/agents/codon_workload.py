@@ -283,6 +283,14 @@ class CodonWorkload(Workload):
         description: Optional[str] = None,
         tags: Optional[Sequence[str]] = None,
     ) -> None:
+        """Initialize workload with metadata.
+
+        Args:
+            name: Unique identifier for the workload type.
+            version: Semantic version (e.g., "1.2.0").
+            description: Human-readable purpose description.
+            tags: Categorization tags.
+        """
         self._node_specs: Dict[str, NodeSpec] = {}
         self._node_functions: Dict[str, Callable[..., Any]] = {}
         self._edges: Set[Tuple[str, str]] = set()
@@ -341,6 +349,22 @@ class CodonWorkload(Workload):
         model_name: Optional[str] = None,
         model_version: Optional[str] = None,
     ) -> NodeSpec:
+        """Add a node (computational step) to the workload.
+
+        Args:
+            function: The Python function to execute for this node.
+            name: Unique identifier for this node within the workload.
+            role: The node's role in the workflow (e.g., "processor", "validator").
+            org_namespace: Organization namespace for scoping. Defaults to ORG_NAMESPACE env var.
+            model_name: Optional model identifier if this node uses an AI model.
+            model_version: Optional model version if this node uses an AI model.
+
+        Returns:
+            The generated NodeSpec with a unique ID.
+
+        Raises:
+            WorkloadRegistrationError: If a node with this name already exists.
+        """
         if name in self._node_specs:
             raise WorkloadRegistrationError(f"Node '{name}' already registered")
 
@@ -361,6 +385,18 @@ class CodonWorkload(Workload):
         return nodespec
 
     def add_edge(self, source_name: str, destination_name: str) -> None:
+        """Add an edge between two nodes in the workload.
+
+        Args:
+            source_name: Name of the source node.
+            destination_name: Name of the destination node.
+
+        Raises:
+            WorkloadRegistrationError: If either node name doesn't exist.
+            
+        TODO: Clarify what source_name and destination_name semantically represent
+        TODO: Document whether this creates directed edges and how token flow works
+        """
         if source_name not in self._node_specs:
             raise WorkloadRegistrationError(f"Unknown source node '{source_name}'")
         if destination_name not in self._node_specs:

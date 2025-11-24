@@ -1,0 +1,35 @@
+site_name: Codon SDK Documentation
+site_description: Observable AI agents with the Codon SDK
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - toc.integrate
+    - search.suggest
+    - content.code.copy
+
+plugins:
+  - search
+  - gen-files:
+      scripts:
+        - docs/gen_ref_pages.py
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_heading: true
+            show_root_full_path: false
+            show_signature_annotations: true
+
+docs_dir: docs/public
+nav:
+  - Home: index.md
+  - What is Codon: what-is-codon.md
+  - Getting Started: getting-started.md
+  - Building from Scratch: building-from-scratch.md
+  - Instrumentation: 
+    - Overview: instrumentation/index.md
+    - LangGraph: instrumentation/langgraph.md
+  - API Reference: api-reference.md
