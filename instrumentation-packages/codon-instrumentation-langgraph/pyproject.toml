@@ -18,7 +18,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "codon_sdk @ git+https://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@github.com/Codon-Ops/codon-sdk.git#subdirectory=sdk",
+    "codon_sdk,
     "opentelemetry-api",
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp-proto-grpc",
