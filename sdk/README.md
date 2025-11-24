@@ -1,9 +1,9 @@
 # Codon SDK Documentation
 
-Complete guide to building observable AI agents with the Codon SDK.
+Complete guide to [building observable AI agents with the Codon SDK](https://codon-ops.github.io/codon-sdk/).
 
 ## Documentation Sections
-- [**What is the Codon SDK**](https://codon-ops.github.io/codon-sdk/what-is-codon/) - Design philosophy and core concepts
+- [**What is the Codon SDK?**](https://codon-ops.github.io/codon-sdk/what-is-codon/) - Design philosophy and core concepts
 - [**Getting Started**](https://codon-ops.github.io/codon-sdk/getting-started/) - Installation and basic setup
 - [**Building from Scratch**](https://codon-ops.github.io/codon-sdk/building-from-scratch/) - Create agents with CodonWorkload
 - [**Instrumentation**](https://codon-ops.github.io/codon-sdk/instrumentation/) - Framework-specific integrations (LangGraph, OpenAI, etc.)
