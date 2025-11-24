@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 # This is the main SDK package name
 name = "codon_sdk"
-version = "0.1.0a3"
+version = "0.1.0a1"
 license = {text = "Apache-2.0"}
 authors = [
   { name="Sheldon Gilbert, Martin Arroyo", email="martin@codonops.ai" },
@@ -13,6 +13,7 @@ authors = [
   { name="Sheldon Gilbert", email="sheldon@codonops.ai"},
 ]
 maintainers = [
+  { name="Carl Gordon, Luis Moreno", email="carl@codonops.ai"},
   { name="Carl Gordon", email="carl@codonops.ai"},
   { name="Luis Moreno", email="luis@codonops.ai"},
 ]
