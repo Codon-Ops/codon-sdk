@@ -1,0 +1,53 @@
+name: Release to PyPI
+
+on:
+  push:
+    tags:
+      - 'sdk/v*'                # Triggers for the Core SDK
+      - 'langgraph-adapter/v*'  # Triggers for the LangGraph Adapter
+
+jobs:
+  pypi-publish:
+    name: Upload release to PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: Install Build Tools
+        run: pip install build
+
+      # --- LOGIC FOR CORE SDK ---
+      # Matches tags like: sdk/v0.1.0
+      - name: Build Codon SDK
+        if: startsWith(github.ref, 'refs/tags/sdk/')
+        run: |
+          cd sdk
+          python -m build
+          echo "PACKAGE_PATH=sdk/dist/*" >> $GITHUB_ENV
+
+      # --- LOGIC FOR LANGGRAPH ADAPTER ---
+      # Matches tags like: langgraph-adapter/v0.1.0
+      - name: Build LangGraph Adapter
+        if: startsWith(github.ref, 'refs/tags/langgraph-adapter/')
+        run: |
+          cd instrumentation-packages/codon-instrumentation-langgraph
+          python -m build
+          echo "PACKAGE_PATH=instrumentation-packages/codon-instrumentation-langgraph/dist/*" >> $GITHUB_ENV
+
+      # --- COMMON UPLOAD STEP ---
+      - name: Publish to PyPI
+        if: env.PACKAGE_PATH != ''
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages_dir: ${{ env.PACKAGE_PATH }}
+          password: ${{ secrets.PYPI_API_TOKEN }}
