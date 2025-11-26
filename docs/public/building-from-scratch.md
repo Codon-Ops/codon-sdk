@@ -7,6 +7,7 @@ If you're building agents from the ground up, [CodonWorkload](api-reference.md#c
 CodonWorkload is the foundation for building observable AI agents. Whether you build from scratch or use frameworks like LangGraph, it gives your agents the ability to track their own performance, costs, and behavior over time.
 
 **Key capabilities:**
+
 - **Node registration**: Add Python functions as workflow steps
 - **Graph definition**: Connect nodes with directed edges to define execution flow
 - **Token-based execution**: Messages flow between nodes with full provenance tracking
@@ -210,6 +211,7 @@ print(f"Logic ID changed? {workload.logic_id != baseline_logic_id}")  # True
 ```
 
 This deterministic identification enables:
+
 - **Deduplication**: Skip redundant executions of the same logic
 - **Version tracking**: Compare agent iterations across deployments  
 - **Caching**: Store and retrieve results based on stable identifiers

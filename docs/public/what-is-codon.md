@@ -83,18 +83,21 @@ Codon Workload is the heart of our emerging agentic framework. The principles th
 ## Why This Matters
 
 **For Development Teams:**
+
 - **Faster debugging**: Complete visibility into multi-step agent workflows eliminates guesswork
 - **Framework flexibility**: Keep using [LangGraph](instrumentation/langgraph.md), OpenAI, or other tools you know—just add observability
 - **Reliable deployments**: Same agent logic runs consistently across development, staging, and production
 
 **For Operations Teams:**
+
 - **Production confidence**: Comprehensive monitoring and alerting for AI agent behavior
 - **Audit compliance**: Built-in provenance tracking meets regulatory requirements
 - **Infrastructure independence**: Standard OpenTelemetry output works with your existing monitoring stack
 
-[Explore detailed API documentation →](api-reference.md)
-
 **For Organizations:**
+
 - **Risk mitigation**: Full transparency into AI decision-making processes  
 - **Operational excellence**: Treat AI agents with the same rigor as traditional software systems
 - **Strategic flexibility**: Evolve your AI stack without being locked into specific vendors or frameworks
+
+[Explore detailed API documentation →](api-reference.md)

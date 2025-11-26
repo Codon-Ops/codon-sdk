@@ -1,3 +1,17 @@
+# Copyright 2025 Codon, Inc.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """LangGraph integration helpers for Codon Workloads."""
 from __future__ import annotations
 
@@ -89,17 +103,25 @@ class LangGraphWorkloadAdapter:
     ) -> Union[CodonWorkload, LangGraphAdapterResult]:
         """Create a :class:`CodonWorkload` from a LangGraph ``StateGraph``.
 
-        Parameters
-        ----------
-        graph
-            A LangGraph ``StateGraph`` (preferred) or compatible object exposing
-            ``nodes``/``edges``.
-        compile_kwargs
-            Optional keyword arguments forwarded to ``graph.compile(...)`` so
-            you can attach checkpointers, memory stores, or other runtime extras.
-        return_artifacts
-            When ``True`` return a :class:`LangGraphAdapterResult` containing the
-            workload, the original state graph, and the compiled graph.
+        Args:
+            graph: A LangGraph ``StateGraph`` (preferred) or compatible object exposing
+                ``nodes``/``edges``.
+            name: Unique identifier for the workload type.
+            version: Semantic version (e.g., "1.2.0").
+            description: Human-readable purpose description.
+            tags: Categorization tags.
+            org_namespace: Organization namespace for scoping.
+            node_overrides: Optional mapping of node names to override configurations.
+            entry_nodes: Optional sequence of entry node names.
+            max_reviews: Optional maximum number of reviews.
+            compile_kwargs: Optional keyword arguments forwarded to ``graph.compile(...)`` so
+                you can attach checkpointers, memory stores, or other runtime extras.
+            runtime_config: Optional runtime configuration mapping.
+            return_artifacts: When ``True`` return a :class:`LangGraphAdapterResult` containing the
+                workload, the original state graph, and the compiled graph.
+
+        Returns:
+            CodonWorkload or LangGraphAdapterResult depending on return_artifacts parameter.
         """
 
         compiled, raw_nodes, raw_edges = cls._normalise_graph(

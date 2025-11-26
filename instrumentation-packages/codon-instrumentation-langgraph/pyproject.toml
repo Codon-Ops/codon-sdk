@@ -4,26 +4,34 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "codon-instrumentation-langgraph"
-version = "0.1.0"
+version = "0.1.0a1"
+license = {text = "Apache-2.0"}
 authors = [
+  { name="Codon, Inc.", email="martin@codonops.ai" },
   { name="Sheldon Gilbert", email="sheldon@codonops.ai"},
   { name="Martin Arroyo", email="martin@codonops.ai" },
 ]
+maintainers = [
+  { name="Martin Arroyo", email="martin@codonops.ai" },
+  { name="Carl Gordon", email="carl@codonops.ai"},
+  { name="Luis Moreno", email="luis@codonops.ai"},
+]
 description = "Instrumentation package for LangGraph in the Codon ecosystem."
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
+    "Development Status :: 3 - Alpha",
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "codon_sdk",
+    "codon-sdk",
     "opentelemetry-api",
     "opentelemetry-sdk",
     "opentelemetry-exporter-otlp-proto-grpc",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/your-username/codon-sdk"
-"Bug Tracker" = "https://github.com/your-username/codon-sdk/issues"
+"Homepage" = "https://codon-ops.github.io/codon-sdk/instrumentation/langgraph/"
+"Bug Tracker" = "https://github.com/Codon-Ops/codon-sdk/issues"
+"Documentation" = "https://codon-ops.github.io/codon-sdk/instrumentation/langgraph/"

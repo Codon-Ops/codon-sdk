@@ -1,0 +1,35 @@
+# .pre-commit-config.yaml
+#
+# See https://pre-commit.com for more information
+
+# This list defines all the hook "repositories" we will use
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0  # Always pin to a specific version
+    hooks:
+    -   id: trailing-whitespace
+        # Automatically fixes trailing whitespace
+    -   id: end-of-file-fixer
+        # Ensures files end in a newline
+    -   id: check-yaml
+        # Checks all YAML files for syntax errors
+    -   id: check-toml
+        # Checks all TOML files (like pyproject.toml) for syntax errors
+    -   id: check-merge-conflict
+        # Prevents merge-conflict markers from being committed
+    -   id: check-added-large-files
+        # Prevents committing huge (e.g., > 5MB) files
+
+# This "local" repo defines our custom, in-house checks
+-   repo: local
+    hooks:
+    -   id: check-license-header
+        name: Check for Apache 2.0 License Header
+        entry: grep -L "Copyright 2025 Codon"
+        language: system
+        types: [python]
+        files: \.py$
+        # Make sure to update 'exclude' to match your project structure.
+        # This excludes tests, examples, and documentation.
+        exclude: ^(sdk/test/|docs/|examples/)
+        pass_filenames: true
