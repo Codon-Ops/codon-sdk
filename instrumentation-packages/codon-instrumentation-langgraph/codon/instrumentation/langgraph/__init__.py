@@ -23,16 +23,13 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence
 
 from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.resources import Resource
 
 from .attributes import LangGraphSpanAttributes
 from codon_sdk.instrumentation.schemas.nodespec import NodeSpec, NodeSpecSpanAttributes
 from codon_sdk.agents import Workload
 from codon_sdk.instrumentation.schemas.telemetry.spans import CodonBaseSpanAttributes
 from codon_sdk.instrumentation.telemetry import NodeTelemetryPayload
+from codon_sdk.instrumentation import initialize_telemetry
 
 __all__ = [
     "LangGraphWorkloadMixin",
@@ -45,7 +42,6 @@ __all__ = [
     "LangGraphTelemetryCallback",
 ]
 
-SERVICE_NAME: str = os.getenv("OTEL_SERVICE_NAME")
 ORG_NAMESPACE: str = os.getenv("ORG_NAMESPACE")
 __framework__ = "langgraph"
 
@@ -76,31 +72,6 @@ class LangGraphWorkloadMixin(ABC):
         tags: Optional[Sequence[str]] = None,
     ) -> Workload:
         """Translate a LangGraph graph into a concrete Codon workload."""
-
-
-def initialize_telemetry(service_name: str = SERVICE_NAME or "") -> None:
-    """Initialize OpenTelemetry tracing with OTLP exporter.
-
-    Sets up a TracerProvider with BatchSpanProcessor and OTLPSpanExporter to 
-    export spans to an OTLP collector endpoint.
-
-    Args:
-        service_name: Name for the service in telemetry data. Defaults to 
-                     OTEL_SERVICE_NAME environment variable or empty string.
-
-    Example:
-        >>> initialize_telemetry(service_name="codon-langgraph-demo")
-    """
-    # Set up service name
-    resource = Resource(attributes={"service.name": service_name})
-    # Set up TracerProvider & Exporter
-    provider = TracerProvider(resource=resource)
-    otlp_exporter = OTLPSpanExporter()
-
-    processor = BatchSpanProcessor(otlp_exporter)
-    provider.add_span_processor(processor)
-
-    trace.set_tracer_provider(provider)
 
 
 def current_invocation() -> Optional[NodeTelemetryPayload]:
@@ -352,7 +323,7 @@ def track_node(
 
     When the decorated function executes, this decorator:
     - Materializes a NodeSpec and captures its ID, signature, and schemas
-    - Wraps execution in an OpenTelemetry span (async and sync supported)  
+    - Wraps execution in an OpenTelemetry span (async and sync supported)
     - Records inputs, outputs, and wall-clock latency via standardized span attributes
 
     Args:
