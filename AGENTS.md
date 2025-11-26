@@ -7,6 +7,7 @@ This document is a living map for developers building agents in the Codon ecosys
 - `docs/guides/codon-workload-quickstart.md` shows an end-to-end example of composing and running a workload directly with the SDK.
 - [`instrumentation-packages/codon-instrumentation-langgraph/AGENTS.md`](instrumentation-packages/codon-instrumentation-langgraph/AGENTS.md) covers the LangGraph decorators, the `LangGraphWorkloadAdapter`, and how to inherit telemetry automatically.
 - [`instrumentation-packages/codon-instrumentation-openai/AGENTS.md`](instrumentation-packages/codon-instrumentation-openai/AGENTS.md) will track OpenAI-specific instrumentation work. It currently outlines expectations and open tasks.
+- Telemetry initialization now lives in the core SDK (`codon_sdk.instrumentation.initialize_telemetry`), with a hardcoded production default endpoint and API-key header support. Framework packages re-export this entrypoint to stay aligned.
 
 If you are introducing a new framework integration, create an `AGENTS.md` alongside it and link back here.
 
@@ -21,6 +22,7 @@ Telemetry defaults to OpenTelemetry OTLP exporters; align your environment varia
 - The OpenAI instrumentation package is still a stub—see its `AGENTS.md` for the punch list.
 - SDK testing and documentation are light; expect breaking changes as the contracts tighten.
 - Additional frameworks (e.g., LangChain, LiteLLM) may join this layout. Document them here when they land.
+- Telemetry bootstrap is centralized; callers can override endpoint/API key via args or env vars (`OTEL_EXPORTER_OTLP_ENDPOINT`, `CODON_API_KEY`). An opt-in flag (`CODON_ATTACH_TO_EXISTING_OTEL_PROVIDER`) lets Codon attach its OTLP exporter to an existing tracer provider (e.g., when users already run OTEL auto-instrumentation) instead of replacing it.
 
 ## Contribution Guidelines
 - Keep the `AGENTS.md` files in sync with code changes that alter agent-facing behavior.
