@@ -26,6 +26,35 @@ For complete method signatures and parameters, see the [API Reference](api-refer
 
 **Runtime**: The execution context that provides nodes access to operations like `runtime.emit()`, `runtime.record_event()`, and `runtime.state`.
 
+## Node Function Signatures
+
+When building agents from scratch, your node functions should follow a specific signature pattern to access Codon's workflow features:
+
+```python
+def your_node_function(payload, *, runtime, context):
+    # Your business logic here
+    result = process(payload)
+    
+    # Use runtime features
+    runtime.emit("next_node", result)
+    runtime.record_event("processed", metadata={"size": len(result)})
+    
+    return result
+```
+
+**Parameters for Full Instrumentation:**
+
+- **`payload`**: The input data for this node (from initial execution or upstream `runtime.emit()` calls)
+- **`runtime`**: Provides access to Codon workflow operations (required for connected workflows)  
+- **`context`**: Execution metadata like `deployment_id`, `run_id`, `workload_name`
+
+**What `runtime` enables:**
+
+- **`runtime.emit(target_node, data)`**: Send data to downstream nodes to continue the workflow
+- **`runtime.record_event(event_type, metadata={})`**: Add custom entries to the audit trail
+- **`runtime.state`**: Shared dictionary for coordination between nodes in the same execution
+- **`runtime.stop()`**: Halt the entire workflow execution early
+
 ## Single-Agent Workflow
 
 Here's a simple Q&A agent that processes a user question:
