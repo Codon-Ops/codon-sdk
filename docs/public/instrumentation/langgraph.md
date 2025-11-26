@@ -5,6 +5,7 @@ If you're already using LangGraph, the Codon SDK provides seamless integration t
 ## Understanding State Graph vs Compiled Graph
 
 LangGraph has two distinct graph representations:
+
 - **State Graph**: The graph you define and add nodes to during development
 - **Compiled Graph**: The executable version created when you want to run the graph
 
