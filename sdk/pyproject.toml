@@ -27,6 +27,9 @@ classifiers = [
 ]
 # Core dependencies needed by every part of the SDK
 dependencies = [
+    "opentelemetry-api",
+    "opentelemetry-exporter-otlp-proto-grpc",
+    "opentelemetry-sdk",
     "pydantic",
 ]
 
