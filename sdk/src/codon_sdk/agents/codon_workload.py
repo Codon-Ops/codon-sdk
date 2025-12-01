@@ -393,9 +393,6 @@ class CodonWorkload(Workload):
 
         Raises:
             WorkloadRegistrationError: If either node name doesn't exist.
-            
-        TODO: Clarify what source_name and destination_name semantically represent
-        TODO: Document whether this creates directed edges and how token flow works
         """
         if source_name not in self._node_specs:
             raise WorkloadRegistrationError(f"Unknown source node '{source_name}'")
