@@ -1,5 +1,6 @@
 import pytest
 from types import SimpleNamespace
+import logging
 
 from codon_sdk.instrumentation import DEFAULT_INGEST_ENDPOINT
 from codon_sdk.instrumentation import config as instrumentation_config
@@ -53,13 +54,19 @@ def _patch_base(monkeypatch, existing_provider=None):
         "get_tracer_provider",
         lambda: existing_provider,
     )
+    # Ensure warnings are captured
+    monkeypatch.setattr(instrumentation_config, "logger", logging.getLogger("codon_test_logger"))
 
 
 def test_initialize_telemetry_uses_defaults(monkeypatch):
     captured = {}
+    warnings = []
 
     def capture_provider(provider):
         captured["provider"] = provider
+
+    def capture_warning(msg):
+        warnings.append(msg)
 
     _patch_base(monkeypatch, existing_provider=object())
     monkeypatch.setattr(
@@ -67,6 +74,7 @@ def test_initialize_telemetry_uses_defaults(monkeypatch):
         "set_tracer_provider",
         capture_provider,
     )
+    monkeypatch.setattr(instrumentation_config.logger, "warning", lambda msg: warnings.append(msg))
 
     instrumentation_config.initialize_telemetry()
 
@@ -76,6 +84,7 @@ def test_initialize_telemetry_uses_defaults(monkeypatch):
     assert exporter.endpoint == DEFAULT_INGEST_ENDPOINT
     assert exporter.headers == {}
     assert provider.resource.attributes["service.name"] == "unknown_codon_service"
+    assert warnings  # warning about missing API key
 
 
 def test_initialize_telemetry_prefers_arguments(monkeypatch):

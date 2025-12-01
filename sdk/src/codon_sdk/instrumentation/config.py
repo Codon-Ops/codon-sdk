@@ -21,6 +21,11 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
+import logging
+
+# Avoid configuring root logger; module-level logger only.
+logger = logging.getLogger(__name__)
+
 # Hardcoded production ingest endpoint; can be overridden via argument or env.
 DEFAULT_INGEST_ENDPOINT = "https://ingest.codonops.ai:4317"
 
@@ -71,6 +76,10 @@ def initialize_telemetry(
     headers: Dict[str, str] = {}
     if final_api_key:
         headers["x-codon-api-key"] = final_api_key
+    else:
+        logger.warning(
+            "CODON telemetry initialized without an API key; spans may be rejected by the gateway"
+        )
 
     resource = Resource(attributes={"service.name": final_service_name})
     exporter = OTLPSpanExporter(endpoint=final_endpoint, headers=headers)
