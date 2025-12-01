@@ -38,6 +38,7 @@ You can set these environment variables directly:
 export ORG_NAMESPACE=your-org-name
 export OTEL_SERVICE_NAME=your-service-name  # optional
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317  # optional
+export CODON_API_KEY=your-api-key-from-dashboard  # required for telemetry on Codon platform
 ```
 
 Or create a `.env` file in your project root:
@@ -49,7 +50,42 @@ ORG_NAMESPACE=your-org-name
 # Optional - only needed if using telemetry
 OTEL_SERVICE_NAME=your-service-name
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+
+# Required for captured telemetry visible on Codon platform
+CODON_API_KEY=your-api-key-from-dashboard
 ```
+
+## Platform Setup
+
+To access the Codon observability platform and export telemetry data, you'll need to create an account and obtain an API key.
+
+### Step 1: Access the Login Screen
+
+Navigate to the Codon platform and click 'Sign in with Github':
+
+![Login Screen](images/auth/step1-login-screen.png)
+
+### Step 2: Authorize with GitHub
+
+You'll be redirected to GitHub to authorize the Codon application:
+
+![GitHub SSO](images/auth/step2-github-sso.png)
+
+### Step 3: Access Your Dashboard
+
+After authorization, you'll be redirected to your organization dashboard:
+
+![Admin Panel](images/auth/step3-admin-panel.png)
+
+Your dashboard will display your organization ID, name, email, and API key.
+
+### Step 4: Configure Your Organization
+
+Add or update your organization name and save your settings:
+
+![Organization Settings](images/auth/step4-org-settings.png)
+
+**Important:** Copy your API key and set it as the `CODON_API_KEY` environment variable to authenticate telemetry exports to the Codon platform.
 
 ## Next Steps
 

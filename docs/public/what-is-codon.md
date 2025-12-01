@@ -12,6 +12,8 @@ That's why Codon assigns Universal IDs to AI agents, intelligently encoding thei
 
 The SDK provides common building blocks including immutable node specifications, logic ID generation, and a shared telemetry vocabulary. [Framework-specific instrumentation packages](instrumentation/index.md) emit OpenTelemetry spans enriched with Codon metadata.
 
+To access the full observability platform, [sign up for a Codon account](getting-started.md#platform-setup) and obtain your API key.
+
 ## How Codon Works: Two-Layer Architecture
 
 **Layer 1: The Core SDK** - Generates stable Node IDs and Logic IDs from agent graphs, plus provides the Workload interface that establishes the contract all concrete implementations must follow to communicate with the data collection system.
