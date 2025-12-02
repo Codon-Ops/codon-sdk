@@ -82,6 +82,8 @@ For a full walkthrough, see `docs/guides/codon-workload-quickstart.md`.
 ## Telemetry Vocabulary
 - `codon_sdk.instrumentation.schemas.telemetry.spans` defines span names and base attributes shared across frameworks.
 - Document additions here before using them in instrumentation packages to keep alignment.
+- Telemetry initialization is centralized in `codon_sdk.instrumentation.initialize_telemetry`, with default endpoint `https://ingest.codonops.ai:4317` and `x-codon-api-key` header support (args override env; env vars `OTEL_EXPORTER_OTLP_ENDPOINT`, `CODON_API_KEY`, `OTEL_SERVICE_NAME` remain valid). Optional attach mode (`attach_to_existing` arg or `CODON_ATTACH_TO_EXISTING_OTEL_PROVIDER` env) lets you add Codon’s exporter to an existing tracer provider instead of replacing it—useful when OTEL auto-instrumentation is already active.
+- CodonWorkload can emit spans natively when `enable_tracing=True` (default: False). It uses the global tracer provider configured via `initialize_telemetry` to create one span per node execution with workload/org/deployment IDs, logic/run IDs, and NodeSpec attributes. Leave it disabled if another instrumentation layer (e.g., LangGraph adapter) is already wrapping nodes to avoid duplicate spans.
 
 ## Extending the SDK
 - Capture requirements for new schema fields inside each class docstring and mirror them here.

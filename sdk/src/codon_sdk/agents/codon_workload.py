@@ -42,6 +42,9 @@ from typing import (
 )
 from uuid import uuid4
 
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
+
 from codon_sdk.instrumentation.schemas.logic_id import (
     AgentClass,
     LogicRequest,
@@ -49,8 +52,9 @@ from codon_sdk.instrumentation.schemas.logic_id import (
     Topology,
     generate_logic_id,
 )
-from codon_sdk.instrumentation.schemas.nodespec import NodeSpec
+from codon_sdk.instrumentation.schemas.nodespec import NodeSpec, NodeSpecSpanAttributes
 from codon_sdk.instrumentation.telemetry import NodeTelemetryPayload
+from codon_sdk.instrumentation.schemas.telemetry.spans import CodonBaseSpanAttributes
 
 from .workload import Workload
 
@@ -66,6 +70,98 @@ def _render_payload(value: Any, *, max_length: int = 2048) -> str:
     if len(rendered) > max_length:
         return rendered[: max_length - 3] + "..."
     return rendered
+
+
+def _apply_nodespec_attributes(span, nodespec: NodeSpec) -> None:
+    span.set_attribute(NodeSpecSpanAttributes.ID.value, nodespec.id)
+    span.set_attribute(NodeSpecSpanAttributes.Version.value, nodespec.spec_version)
+    span.set_attribute(NodeSpecSpanAttributes.Name.value, nodespec.name)
+    span.set_attribute(NodeSpecSpanAttributes.Role.value, nodespec.role)
+    span.set_attribute(
+        NodeSpecSpanAttributes.CallableSignature.value,
+        nodespec.callable_signature,
+    )
+    span.set_attribute(
+        NodeSpecSpanAttributes.InputSchema.value,
+        nodespec.input_schema,
+    )
+    if nodespec.output_schema is not None:
+        span.set_attribute(
+            NodeSpecSpanAttributes.OutputSchema.value,
+            nodespec.output_schema,
+        )
+    if nodespec.model_name:
+        span.set_attribute(NodeSpecSpanAttributes.ModelName.value, nodespec.model_name)
+    if nodespec.model_version:
+        span.set_attribute(
+            NodeSpecSpanAttributes.ModelVersion.value,
+            nodespec.model_version,
+        )
+
+
+def _apply_workload_attributes(
+    span, *, telemetry: NodeTelemetryPayload, nodespec: NodeSpec, context: Dict[str, Any]
+) -> None:
+    span.set_attribute(CodonBaseSpanAttributes.AgentFramework.value, "codon")
+    organization = (
+        telemetry.organization_id
+        or telemetry.org_namespace
+        or context.get("organization_id")
+        or context.get("org_namespace")
+        or nodespec.org_namespace
+        or os.getenv("ORG_NAMESPACE")
+    )
+    if organization:
+        span.set_attribute(CodonBaseSpanAttributes.OrganizationId.value, organization)
+        span.set_attribute(CodonBaseSpanAttributes.OrgNamespace.value, organization)
+
+    workload_id = telemetry.workload_id or context.get("workload_id")
+    logic_id = telemetry.workload_logic_id or context.get("logic_id")
+    run_id = telemetry.workload_run_id or context.get("workload_run_id")
+    deployment_id = telemetry.deployment_id or context.get("deployment_id")
+
+    if workload_id:
+        span.set_attribute(CodonBaseSpanAttributes.WorkloadId.value, workload_id)
+    if logic_id:
+        span.set_attribute(CodonBaseSpanAttributes.WorkloadLogicId.value, logic_id)
+    if run_id:
+        span.set_attribute(CodonBaseSpanAttributes.WorkloadRunId.value, run_id)
+    if deployment_id:
+        span.set_attribute(CodonBaseSpanAttributes.DeploymentId.value, deployment_id)
+
+    if telemetry.workload_name or context.get("workload_name"):
+        span.set_attribute(
+            CodonBaseSpanAttributes.WorkloadName.value,
+            telemetry.workload_name or context.get("workload_name"),
+        )
+    if telemetry.workload_version or context.get("workload_version"):
+        span.set_attribute(
+            CodonBaseSpanAttributes.WorkloadVersion.value,
+            telemetry.workload_version or context.get("workload_version"),
+        )
+
+    span.set_attribute(CodonBaseSpanAttributes.NodeStatusCode.value, telemetry.status_code)
+    if telemetry.error_message:
+        span.set_attribute(CodonBaseSpanAttributes.NodeErrorMessage.value, telemetry.error_message)
+
+    if telemetry.node_input is not None:
+        span.set_attribute(CodonBaseSpanAttributes.NodeInput.value, telemetry.node_input)
+    if telemetry.node_output is not None:
+        span.set_attribute(CodonBaseSpanAttributes.NodeOutput.value, telemetry.node_output)
+    if telemetry.duration_ms is not None:
+        span.set_attribute(CodonBaseSpanAttributes.NodeLatencyMs.value, telemetry.duration_ms)
+
+    if telemetry.model_vendor:
+        span.set_attribute(CodonBaseSpanAttributes.ModelVendor.value, telemetry.model_vendor)
+    if telemetry.model_identifier:
+        span.set_attribute(CodonBaseSpanAttributes.ModelIdentifier.value, telemetry.model_identifier)
+
+    if telemetry.input_tokens is not None:
+        span.set_attribute(CodonBaseSpanAttributes.TokenInput.value, telemetry.input_tokens)
+    if telemetry.output_tokens is not None:
+        span.set_attribute(CodonBaseSpanAttributes.TokenOutput.value, telemetry.output_tokens)
+    if telemetry.total_tokens is not None:
+        span.set_attribute(CodonBaseSpanAttributes.TokenTotal.value, telemetry.total_tokens)
 
 
 @dataclass(frozen=True)
@@ -282,6 +378,7 @@ class CodonWorkload(Workload):
         version: str,
         description: Optional[str] = None,
         tags: Optional[Sequence[str]] = None,
+        enable_tracing: bool = False,
     ) -> None:
         """Initialize workload with metadata.
 
@@ -290,6 +387,9 @@ class CodonWorkload(Workload):
             version: Semantic version (e.g., "1.2.0").
             description: Human-readable purpose description.
             tags: Categorization tags.
+            enable_tracing: When True, emit OpenTelemetry spans directly from the
+                CodonWorkload runtime. Defaults to False to avoid double
+                instrumentation when external wrappers (e.g., LangGraph) are used.
         """
         self._node_specs: Dict[str, NodeSpec] = {}
         self._node_functions: Dict[str, Callable[..., Any]] = {}
@@ -300,6 +400,7 @@ class CodonWorkload(Workload):
         self._logic_id: Optional[str] = None
         self._entry_nodes: Optional[List[str]] = None
         self._organization_id: Optional[str] = os.getenv("ORG_NAMESPACE")
+        self._enable_tracing = enable_tracing
         super().__init__(
             name=name,
             version=version,
@@ -393,7 +494,7 @@ class CodonWorkload(Workload):
 
         Raises:
             WorkloadRegistrationError: If either node name doesn't exist.
-            
+
         TODO: Clarify what source_name and destination_name semantically represent
         TODO: Document whether this creates directed edges and how token flow works
         """
@@ -462,6 +563,7 @@ class CodonWorkload(Workload):
         state: Dict[str, Any] = {}
 
         loop = asyncio.get_running_loop()
+        tracer = trace.get_tracer(__name__) if self._enable_tracing else None
 
         async def publish_event(event_type: str, **data: Any) -> None:
             if event_handler is None:
@@ -573,44 +675,59 @@ class CodonWorkload(Workload):
             )
 
             started_at = _utcnow()
+            span_ctx = (
+                tracer.start_as_current_span(f"codon.node.{node_name}")
+                if tracer
+                else contextlib.nullcontext()
+            )
             await publish_event(
                 "node_started",
                 node=node_name,
                 token_id=token.id,
                 payload=token.payload,
             )
-            try:
-                result = node_callable(token.payload, runtime=handle, context=context)
-                if inspect.isawaitable(result):
-                    result = await result  # type: ignore[assignment]
-            except Exception as exc:  # pragma: no cover
-                telemetry.status_code = "ERROR"
-                telemetry.error_message = repr(exc)
-                ledger.append(
-                    AuditEvent(
-                        event_type="node_failed",
-                        timestamp=_utcnow(),
-                        token_id=token.id,
-                        source_node=node_name,
-                        target_node=None,
-                        metadata={"exception": repr(exc)},
+            with span_ctx as span:
+                if span is not None:
+                    _apply_nodespec_attributes(span, nodespec)
+                    _apply_workload_attributes(span, telemetry=telemetry, nodespec=nodespec, context=context)
+                try:
+                    result = node_callable(token.payload, runtime=handle, context=context)
+                    if inspect.isawaitable(result):
+                        result = await result  # type: ignore[assignment]
+                except Exception as exc:  # pragma: no cover
+                    telemetry.status_code = "ERROR"
+                    telemetry.error_message = repr(exc)
+                    if span is not None:
+                        _apply_workload_attributes(span, telemetry=telemetry, nodespec=nodespec, context=context)
+                        span.set_status(Status(StatusCode.ERROR, str(exc)))
+                    ledger.append(
+                        AuditEvent(
+                            event_type="node_failed",
+                            timestamp=_utcnow(),
+                            token_id=token.id,
+                            source_node=node_name,
+                            target_node=None,
+                            metadata={"exception": repr(exc)},
+                        )
                     )
-                )
-                schedule_event(
-                    "node_failed",
-                    {
-                        "node": node_name,
-                        "token_id": token.id,
-                        "exception": repr(exc),
-                    },
-                )
-                raise WorkloadRuntimeError(
-                    f"Node '{node_name}' execution failed"
-                ) from exc
-            finished_at = _utcnow()
-            telemetry.duration_ms = int((finished_at - started_at).total_seconds() * 1000)
-            telemetry.status_code = "OK"
-            telemetry.node_output = _render_payload(result)
+                    schedule_event(
+                        "node_failed",
+                        {
+                            "node": node_name,
+                            "token_id": token.id,
+                            "exception": repr(exc),
+                        },
+                    )
+                    raise WorkloadRuntimeError(
+                        f"Node '{node_name}' execution failed"
+                    ) from exc
+                finished_at = _utcnow()
+                telemetry.duration_ms = int((finished_at - started_at).total_seconds() * 1000)
+                telemetry.status_code = "OK"
+                telemetry.node_output = _render_payload(result)
+                if span is not None:
+                    _apply_workload_attributes(span, telemetry=telemetry, nodespec=nodespec, context=context)
+                    span.set_status(Status(StatusCode.OK))
 
             records[node_name].append(
                 NodeExecutionRecord(

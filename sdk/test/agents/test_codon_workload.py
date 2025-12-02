@@ -198,6 +198,78 @@ def test_execution_context_includes_workload_identifiers(monkeypatch):
     assert captured_context["org_namespace"] == "context-org"
     assert captured_context["workload_name"] == "ContextAgent"
     assert captured_context["workload_version"] == "1.0.0"
+
+
+def test_tracing_opt_in_emits_spans(monkeypatch):
+    opentelemetry = pytest.importorskip("opentelemetry")
+    sdk_trace = pytest.importorskip("opentelemetry.sdk.trace")
+    export = pytest.importorskip("opentelemetry.sdk.trace.export")
+
+    InMemorySpanExporter = export.InMemorySpanExporter
+    SimpleSpanProcessor = export.SimpleSpanProcessor
+    TracerProvider = sdk_trace.TracerProvider
+    trace = opentelemetry.trace
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    trace.set_tracer_provider(provider)
+
+    workload = CodonWorkload(name="TraceAgent", version="1.0.0", enable_tracing=True)
+
+    def first(message, *, runtime, context):
+        runtime.emit("second", {"value": message["value"] + 1})
+        return {"value": message["value"]}
+
+    def second(message, *, runtime, context):
+        return message["value"]
+
+    workload.add_node(first, name="first", role="starter")
+    workload.add_node(second, name="second", role="finisher")
+    workload.add_edge("first", "second")
+
+    workload.execute({"value": 1}, deployment_id="dev-trace")
+
+    spans = exporter.get_finished_spans()
+    assert len(spans) == 2
+    span_names = {span.name for span in spans}
+    assert "codon.node.first" in span_names
+    assert "codon.node.second" in span_names
+    for span in spans:
+        assert span.attributes.get("codon.workload.id") == workload.agent_class_id
+        assert span.attributes.get("codon.workload.logic_id") == workload.logic_id
+        assert span.attributes.get("codon.workload.run_id")
+        assert span.attributes.get("codon.workload.deployment_id") == "dev-trace"
+    exporter.clear()
+
+
+def test_tracing_opt_out_produces_no_spans(monkeypatch):
+    opentelemetry = pytest.importorskip("opentelemetry")
+    sdk_trace = pytest.importorskip("opentelemetry.sdk.trace")
+    export = pytest.importorskip("opentelemetry.sdk.trace.export")
+
+    InMemorySpanExporter = export.InMemorySpanExporter
+    SimpleSpanProcessor = export.SimpleSpanProcessor
+    TracerProvider = sdk_trace.TracerProvider
+    trace = opentelemetry.trace
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    trace.set_tracer_provider(provider)
+
+    workload = CodonWorkload(name="TraceOff", version="1.0.0", enable_tracing=False)
+
+    def node(message, *, runtime, context):
+        return message["value"]
+
+    workload.add_node(node, name="only", role="solo")
+
+    workload.execute({"value": 1}, deployment_id="dev")
+
+    spans = exporter.get_finished_spans()
+    assert len(spans) == 0
+    exporter.clear()
     assert captured_context["deployment_id"] == "dev-west"
 
 

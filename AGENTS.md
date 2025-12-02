@@ -7,6 +7,7 @@ This document is a living map for developers building agents in the Codon ecosys
 - `docs/guides/codon-workload-quickstart.md` shows an end-to-end example of composing and running a workload directly with the SDK.
 - [`instrumentation-packages/codon-instrumentation-langgraph/AGENTS.md`](instrumentation-packages/codon-instrumentation-langgraph/AGENTS.md) covers the LangGraph decorators, the `LangGraphWorkloadAdapter`, and how to inherit telemetry automatically.
 - [`instrumentation-packages/codon-instrumentation-openai/AGENTS.md`](instrumentation-packages/codon-instrumentation-openai/AGENTS.md) will track OpenAI-specific instrumentation work. It currently outlines expectations and open tasks.
+- Telemetry initialization now lives in the core SDK (`codon_sdk.instrumentation.initialize_telemetry`), with a hardcoded production default endpoint and API-key header support. Framework packages re-export this entrypoint to stay aligned. CodonWorkload can emit spans on its own when `enable_tracing=True` (default: False); leave it disabled if another instrumentation layer is already wrapping nodes to avoid duplicate spans.
 
 If you are introducing a new framework integration, create an `AGENTS.md` alongside it and link back here.
 
