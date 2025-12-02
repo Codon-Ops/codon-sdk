@@ -32,6 +32,11 @@ To access the full observability platform, [sign up for a Codon account](getting
 - Standardized OpenTelemetry output works with any monitoring stack
 - [Pluggable instrumentation packages](instrumentation/index.md) adapt to your current tools
 
+**Platform Telemetry**
+- Single `initialize_telemetry()` function works for both [from-scratch](building-from-scratch.md) and [framework-based](instrumentation/langgraph.md) agents
+- Automatic export to Codon observability platform with API key configuration
+- Node-level spans, performance metrics, and cost attribution out of the box
+
 **Deterministic Identity System**
 - Stable SHA-256 identifiers for functions, workflows, and deployments
 - Enables reliable caching, deduplication, and version tracking

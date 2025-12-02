@@ -53,12 +53,12 @@ You can pass any LangGraph compile arguments through `compile_kwargs`:
 ## Basic Usage Example
 
 ```python
-from codon.instrumentation.langgraph import LangGraphWorkloadAdapter, initialize_telemetry
+from codon_sdk.instrumentation import initialize_telemetry
+from codon.instrumentation.langgraph import LangGraphWorkloadAdapter
 from langgraph.graph import StateGraph
 
-# Optional: configure telemetry export once at startup
-def bootstrap():
-    initialize_telemetry(service_name="langgraph-codon-demo")
+# Initialize telemetry for Codon platform integration
+initialize_telemetry(service_name="langgraph-codon-demo")
 
 # Suppose you already have a LangGraph defined elsewhere
 from myproject.langgraph import build_graph
@@ -84,6 +84,23 @@ print(f"Ledger entries: {len(report.ledger)}")
 2. Edges in the LangGraph became workload edges, so `runtime.emit` drives execution.
 3. `execute` seeded tokens with the provided state, ran the graph in token order, and captured telemetry & audit logs.
 4. You can inspect `report.ledger` for compliance, or `report.node_results(...)` for business outputs.
+
+## Platform Integration
+
+The `initialize_telemetry()` function in the example above connects your LangGraph workflow to the **Codon observability platform**. This transforms your local OpenTelemetry spans into rich telemetry data visible in your Codon dashboard.
+
+**Platform Setup Required**: Before initializing telemetry, you need a Codon API key. Follow the [Platform Setup guide](../getting-started.md#platform-setup) to:
+1. Create your Codon account
+2. Obtain your API key  
+3. Set the `CODON_API_KEY` environment variable
+
+**What gets sent to the platform:**
+- Every LangGraph node execution becomes an OpenTelemetry span with Codon metadata
+- Node inputs, outputs, and performance metrics are captured automatically
+- Workload-level tracing shows complete execution flow in your dashboard
+- Cost attribution tracks token usage across different deployment environments
+
+When you call `initialize_telemetry()`, the SDK configures OpenTelemetry to export these enriched spans directly to the Codon platform, giving you the same observability that [from-scratch workloads](../building-from-scratch.md#platform-integration) receive.
 
 ## Node Overrides
 

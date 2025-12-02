@@ -87,6 +87,29 @@ Add or update your organization name and save your settings:
 
 **Important:** Copy your API key and set it as the `CODON_API_KEY` environment variable to authenticate telemetry exports to the Codon platform.
 
+## Initializing Telemetry
+
+Once you have your API key configured, initialize telemetry to start sending observability data to the Codon platform:
+
+```python
+from codon_sdk.instrumentation import initialize_telemetry
+
+# Initialize telemetry - uses CODON_API_KEY automatically
+initialize_telemetry()
+```
+
+Call `initialize_telemetry()` once at the start of your application, before creating workloads or executing agents. This function:
+
+- Configures OpenTelemetry to export spans to the Codon platform
+- Automatically uses your `CODON_API_KEY` environment variable for authentication
+- Sets up the service name from `OTEL_SERVICE_NAME` (optional)
+- Works for both [from-scratch workloads](building-from-scratch.md) and [framework integrations](instrumentation/langgraph.md)
+
+**Example with service name:**
+```python
+initialize_telemetry(service_name="my-ai-agent")
+```
+
 ## Next Steps
 
 Now that you have the SDK installed and configured, you can:

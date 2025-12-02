@@ -60,8 +60,12 @@ def your_node_function(payload, *, runtime, context):
 Here's a simple Q&A agent that processes a user question:
 
 ```python
+from codon_sdk.instrumentation import initialize_telemetry
 from codon_sdk.agents import CodonWorkload
 from datetime import datetime
+
+# Initialize telemetry for platform integration
+initialize_telemetry()
 
 # Define a workload
 workload = CodonWorkload(name="QA-Agent", version="0.1.0")
@@ -115,6 +119,11 @@ print(f"Logic ID: {workload.logic_id}")
 For more complex scenarios, you can orchestrate multiple agents that collaborate through token passing and shared state:
 
 ```python
+from codon_sdk.instrumentation import initialize_telemetry
+
+# Initialize telemetry for platform integration
+initialize_telemetry()
+
 def build_multi_agent_workload() -> CodonWorkload:
     workload = CodonWorkload(name="Research-Writer", version="0.1.0")
 
@@ -177,6 +186,22 @@ project = {"topic": "The impact of community gardens on urban wellbeing"}
 multi_report = multi_agent.execute(project, deployment_id="demo", max_steps=20)
 final_document = multi_report.node_results("writer")[-1]
 ```
+
+## Platform Integration
+
+The `initialize_telemetry()` function shown in the examples above connects your CodonWorkload executions to the Codon observability platform. Call it once at application startup to unlock comprehensive observability.
+
+**Benefits of platform integration:**
+
+- **Node-level spans**: Every node execution becomes an OpenTelemetry span with input/output data
+- **Workload tracing**: Complete execution flow visible in your observability dashboard  
+- **Performance metrics**: Track latency, error rates, and resource usage per node
+- **Cost attribution**: Monitor token usage and API costs across different deployment environments
+- **Debug workflows**: Inspect failed executions with full context and provenance
+
+When you execute workloads after initializing telemetry, each node function call, `runtime.emit()`, and `runtime.record_event()` creates structured telemetry data that appears in your Codon dashboard. This gives you the same observability benefits that [LangGraph users](instrumentation/langgraph.md) get automatically.
+
+**Setup requirements:** Ensure you have your `CODON_API_KEY` configured as described in [Getting Started](getting-started.md#platform-setup).
 
 ## Key Concepts
 
