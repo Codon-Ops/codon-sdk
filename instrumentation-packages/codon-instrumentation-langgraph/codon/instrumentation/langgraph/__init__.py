@@ -371,8 +371,6 @@ def track_node(
         ... def retrieve_docs(query: str) -> List[str]:
         ...     return ["doc1", "doc2"]
 
-    TODO: Document what 'role' parameter specifically represents
-    TODO: Clarify introspection_target use case and when to use it
     """
     def decorator(func):
         spec_callable = introspection_target or func
