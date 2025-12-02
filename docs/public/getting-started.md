@@ -27,6 +27,7 @@ pip install -e instrumentation-packages/codon-instrumentation-langgraph
 | Variable | Purpose |
 | -------- | ------- |
 | `ORG_NAMESPACE` | Required by `NodeSpec` and instrumentation to scope identifiers. |
+| `CODON_API_KEY` | Required to export telemetry data to the Codon observability platform. |
 | `OTEL_SERVICE_NAME` | Optional service name applied during telemetry initialization. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Configure the OTLP collector when using the default exporter. |
 
