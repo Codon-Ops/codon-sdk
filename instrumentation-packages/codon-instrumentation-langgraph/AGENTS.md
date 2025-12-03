@@ -160,7 +160,7 @@ The ledger records each iteration through the loop, and `runtime.state` tracks i
 ---
 
 ## Telemetry & Audit Integration
-- Call `initialize_telemetry(service_name=...)` once during process startup to export spans via OTLP.
+- Call `initialize_telemetry(service_name=...)` once during process startup to export spans via OTLP. The initializer now lives in the core SDK (`codon_sdk.instrumentation.initialize_telemetry`) and is re-exported here. It defaults the endpoint to `https://ingest.codonops.ai:4317`, injects `x-codon-api-key` from the argument or `CODON_API_KEY` env, and respects `OTEL_EXPORTER_OTLP_ENDPOINT`/`OTEL_SERVICE_NAME` overrides. If you already have an OTEL tracer provider (e.g., via auto-instrumentation), set `CODON_ATTACH_TO_EXISTING_OTEL_PROVIDER=true` or pass `attach_to_existing=True` to add Codon’s exporter to the existing provider instead of replacing it.
 - Each node span now carries workload metadata (`codon.workload.id`, `codon.workload.run_id`, `codon.workload.logic_id`, `codon.workload.deployment_id`, `codon.organization.id`) so traces can be rolled up by workload, deployment, or organization without joins.
 - `LangGraphTelemetryCallback` is attached automatically when invoking LangChain runnables; it captures model vendor/identifier, token usage (prompt, completion, total), and response metadata, all of which is emitted as span attributes (`codon.tokens.*`, `codon.model.*`, `codon.node.raw_attributes_json`).
 - Instrumentation writes into the shared `NodeTelemetryPayload` (`runtime.telemetry`) defined by the SDK so future mixins collect the same schema-aligned fields without reimplementing bookkeeping.
