@@ -201,7 +201,7 @@ The `initialize_telemetry()` function shown in the examples above connects your 
 
 When you execute workloads after initializing telemetry, each node function call, `runtime.emit()`, and `runtime.record_event()` creates structured telemetry data that appears in your Codon dashboard. This gives you the same observability benefits that [LangGraph users](instrumentation/langgraph.md) get automatically.
 
-**Setup requirements:** Ensure you have your `CODON_API_KEY` configured as described in [Getting Started](getting-started.md#platform-setup).
+**Configuration:** See [Getting Started - Initializing Telemetry](getting-started.md#initializing-telemetry) for configuration options and environment variable precedence.
 
 ## Key Concepts
 
