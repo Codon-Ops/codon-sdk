@@ -201,7 +201,17 @@ The `initialize_telemetry()` function shown in the examples above connects your 
 
 When you execute workloads after initializing telemetry, each node function call, `runtime.emit()`, and `runtime.record_event()` creates structured telemetry data that appears in your Codon dashboard. This gives you the same observability benefits that [LangGraph users](instrumentation/langgraph.md) get automatically.
 
-**Configuration:** See [Getting Started - Initializing Telemetry](getting-started.md#initializing-telemetry) for configuration options and environment variable precedence.
+## Telemetry Configuration
+
+**Direct span emission:** To emit OpenTelemetry spans directly from CodonWorkload, set `enable_tracing=True` when creating your workload:
+
+```python
+workload = CodonWorkload(name="MyAgent", version="1.0.0", enable_tracing=True)
+```
+
+See the [`CodonWorkload` API reference](api-reference.md#codon_sdk.agents.CodonWorkload) for complete parameter details.
+
+**Environment variables and options:** See [Getting Started - Initializing Telemetry](getting-started.md#initializing-telemetry) for configuration options and environment variable precedence.
 
 ## Key Concepts
 
