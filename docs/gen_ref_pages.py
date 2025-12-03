@@ -13,6 +13,10 @@ with mkdocs_gen_files.open("api-reference.md", "w") as f:
 
 ::: codon_sdk.agents.ExecutionReport
 
+### Instrumentation
+
+::: codon_sdk.instrumentation.initialize_telemetry
+
 ### Instrumentation Schemas
 
 ::: codon_sdk.instrumentation.schemas.nodespec.NodeSpec

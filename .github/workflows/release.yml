@@ -33,7 +33,7 @@ jobs:
         run: |
           cd sdk
           python -m build
-          echo "PACKAGE_PATH=sdk/dist/*" >> $GITHUB_ENV
+          echo "PACKAGE_PATH=sdk/dist" >> $GITHUB_ENV
 
       # --- LOGIC FOR LANGGRAPH ADAPTER ---
       # Matches tags like: langgraph-adapter/v0.1.0
@@ -42,7 +42,7 @@ jobs:
         run: |
           cd instrumentation-packages/codon-instrumentation-langgraph
           python -m build
-          echo "PACKAGE_PATH=instrumentation-packages/codon-instrumentation-langgraph/dist/*" >> $GITHUB_ENV
+          echo "PACKAGE_PATH=instrumentation-packages/codon-instrumentation-langgraph/dist" >> $GITHUB_ENV
 
       # --- COMMON UPLOAD STEP ---
       - name: Publish to PyPI
