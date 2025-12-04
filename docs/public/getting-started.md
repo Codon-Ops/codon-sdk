@@ -1,7 +1,7 @@
 # Getting Started
 
 ## Prerequisites
-- Python 3.8 or newer
+- Python 3.9 or newer
 - `pip` and a virtual environment tool such as `venv` or `pipenv`
 - Access to an OTLP-compatible collector if you plan to export telemetry
 
