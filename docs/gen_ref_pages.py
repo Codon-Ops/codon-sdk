@@ -5,6 +5,8 @@ import mkdocs_gen_files
 with mkdocs_gen_files.open("api-reference.md", "w") as f:
     f.write("""# API Reference
 
+[View source on GitHub](https://github.com/Codon-Ops/codon-sdk)
+
 ## Core SDK (`codon_sdk`)
 
 ### Agents

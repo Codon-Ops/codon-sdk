@@ -14,6 +14,8 @@ The SDK provides common building blocks including immutable node specifications,
 
 To access the full observability platform, [sign up for a Codon account](getting-started.md#platform-setup) and obtain your API key.
 
+**View source:** [Codon SDK on GitHub](https://github.com/Codon-Ops/codon-sdk)
+
 ## How Codon Works: Two-Layer Architecture
 
 **Layer 1: The Core SDK** - Generates stable Node IDs and Logic IDs from agent graphs, plus provides the Workload interface that establishes the contract all concrete implementations must follow to communicate with the data collection system.

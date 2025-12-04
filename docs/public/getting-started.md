@@ -5,6 +5,8 @@
 - `pip` and a virtual environment tool such as `venv` or `pipenv`
 - Access to an OTLP-compatible collector if you plan to export telemetry
 
+**Source code:** [Codon SDK on GitHub](https://github.com/Codon-Ops/codon-sdk)
+
 ## Installation
 Clone the repository and install the core SDK in editable mode:
 
