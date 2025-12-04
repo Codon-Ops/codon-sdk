@@ -66,7 +66,7 @@ You can set these environment variables directly:
 
 ```bash
 export ORG_NAMESPACE=your-org-name
-export OTEL_SERVICE_NAME=your-service-name  # optional
+export OTEL_SERVICE_NAME=your-service-name  # default service name
 export CODON_API_KEY=your-api-key-from-dashboard  # required for telemetry on Codon platform
 ```
 
@@ -76,7 +76,7 @@ Or create a `.env` file in your project root:
 # Required
 ORG_NAMESPACE=your-org-name
 
-# Optional - only needed if using telemetry
+# Optional - default service name (overridden by function parameter)
 OTEL_SERVICE_NAME=your-service-name
 
 # Required for captured telemetry visible on Codon platform
