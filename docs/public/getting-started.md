@@ -7,23 +7,52 @@
 
 **Source code:** [Codon SDK on GitHub](https://github.com/Codon-Ops/codon-sdk)
 
+## Platform Setup
+
+To access the Codon observability platform and export telemetry data, you'll need to create an account and obtain an API key.
+
+### Step 1: Access the Login Screen
+
+Navigate to the Codon platform and click 'Sign in with Github':
+
+![Login Screen](images/auth/step1-login-screen.png)
+
+### Step 2: Authorize with GitHub
+
+You'll be redirected to GitHub to authorize the Codon application:
+
+![GitHub SSO](images/auth/step2-github-sso.png)
+
+### Step 3: Access Your Dashboard
+
+After authorization, you'll be redirected to your organization dashboard:
+
+![Admin Panel](images/auth/step3-admin-panel.png)
+
+Your dashboard will display your organization ID, name, email, and API key.
+
+### Step 4: Configure Your Organization
+
+Add or update your organization name and save your settings:
+
+![Organization Settings](images/auth/step4-org-settings.png)
+
+**Important:** Copy your API key and set it as the `CODON_API_KEY` environment variable to authenticate telemetry exports to the Codon platform.
+
 ## Installation
-Clone the repository and install the core SDK in editable mode:
+
+Install the Codon SDK from PyPI:
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -e sdk
+pip install codon-sdk
 ```
 
-Instrumentation packages are published independently. To work on one locally, install it the same way:
+For framework-specific integrations, install the corresponding instrumentation packages:
 
 ```bash
-pip install -e instrumentation-packages/codon-instrumentation-langgraph
+# LangGraph integration
+pip install codon-instrumentation-langgraph
 ```
-
-> **Note:** The OpenAI package is currently a stub and will be populated in a future iteration.
 
 ## Environment Configuration
 | Variable | Purpose |
@@ -57,38 +86,6 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 # Required for captured telemetry visible on Codon platform
 CODON_API_KEY=your-api-key-from-dashboard
 ```
-
-## Platform Setup
-
-To access the Codon observability platform and export telemetry data, you'll need to create an account and obtain an API key.
-
-### Step 1: Access the Login Screen
-
-Navigate to the Codon platform and click 'Sign in with Github':
-
-![Login Screen](images/auth/step1-login-screen.png)
-
-### Step 2: Authorize with GitHub
-
-You'll be redirected to GitHub to authorize the Codon application:
-
-![GitHub SSO](images/auth/step2-github-sso.png)
-
-### Step 3: Access Your Dashboard
-
-After authorization, you'll be redirected to your organization dashboard:
-
-![Admin Panel](images/auth/step3-admin-panel.png)
-
-Your dashboard will display your organization ID, name, email, and API key.
-
-### Step 4: Configure Your Organization
-
-Add or update your organization name and save your settings:
-
-![Organization Settings](images/auth/step4-org-settings.png)
-
-**Important:** Copy your API key and set it as the `CODON_API_KEY` environment variable to authenticate telemetry exports to the Codon platform.
 
 ## Initializing Telemetry
 
