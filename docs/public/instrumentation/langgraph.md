@@ -102,7 +102,7 @@ The `initialize_telemetry()` function in the example above connects your LangGra
 
 When you call `initialize_telemetry()`, the SDK configures OpenTelemetry to export these enriched spans directly to the Codon platform, giving you the same observability that [from-scratch workloads](../building-from-scratch.md#platform-integration) receive.
 
-**Configuration:** See [Getting Started - Initializing Telemetry](../getting-started.md#initializing-telemetry) for configuration options and environment variable precedence.
+**Configuration:** See [Getting Started - Initializing Telemetry](../getting-started.md#initializing-telemetry) for configuration options.
 
 ## Node Overrides
 

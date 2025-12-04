@@ -211,7 +211,7 @@ workload = CodonWorkload(name="MyAgent", version="1.0.0", enable_tracing=True)
 
 See the [`CodonWorkload` API reference](api-reference.md#codon_sdk.agents.CodonWorkload) for complete parameter details.
 
-**Environment variables and options:** See [Getting Started - Initializing Telemetry](getting-started.md#initializing-telemetry) for configuration options and environment variable precedence.
+**Environment variables and options:** See [Getting Started - Initializing Telemetry](getting-started.md#initializing-telemetry) for configuration options.
 
 ## Key Concepts
 
