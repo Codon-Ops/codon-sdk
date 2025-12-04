@@ -2,6 +2,8 @@
 
 Complete guide to building observable AI agents with the Codon SDK.
 
+**View source:** [Codon SDK on GitHub](https://github.com/Codon-Ops/codon-sdk)
+
 ## Documentation Sections
 
 - **[What is the Codon SDK](what-is-codon.md)** - Design philosophy and core concepts
