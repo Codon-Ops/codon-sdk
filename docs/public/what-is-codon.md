@@ -2,13 +2,13 @@
 
 ## Why Codon SDK?
 
-There is currently no way to identify AI agents that persists between invocations or across deployment environments. Every time you deploy an AI agent, it gets a new identity. There's no way to track that your 'customer-support-bot-v2' in staging is the same logic as production, making cost analysis, performance tracking, and debugging nearly impossible.
+There is currently no way to identify AI agents that persist between invocations or across deployment environments. Every time you deploy an AI agent, it gets a new identity. There's no way to track that your 'customer-support-bot-v2' in staging has the same logic as 'customer-support-bot-v2' in production, making cost analysis, performance tracking, and debugging nearly impossible.
 
-This gap means AI agent teams struggle to measure their runtime invocations, track usage metrics at the node-level, perform lineage reconstruction, enable cost attribution, and conduct debugging & reliability analytics across environments.
+This gap means AI agent teams struggle to measure AI agent's runtime invocations, track usage metrics at the node-level, perform lineage reconstruction, enable cost attribution, and conduct debugging & reliability analytics across environments.
 
 ## What It Does
 
-That's why Codon assigns Universal IDs to AI agents, intelligently encoding their logic through Node IDs and Logic IDs that persist across deployments. The SDK wraps your existing framework code with [comprehensive observability](instrumentation/index.md), creating an immutable tape of agent actions that can be used for compliance monitoring, debugging, and cost optimization.
+That's why Codon assigns Universal IDs to AI agents, intelligently encoding their logic through Node IDs and Logic IDs that persist across deployments. The SDK wraps your existing framework code with comprehensive observability, creating an immutable tape of agent actions that can be used for compliance monitoring, debugging, and cost optimization.
 
 The SDK provides common building blocks including immutable node specifications, logic ID generation, and a shared telemetry vocabulary. [Framework-specific instrumentation packages](instrumentation/index.md) emit OpenTelemetry spans enriched with Codon metadata.
 
