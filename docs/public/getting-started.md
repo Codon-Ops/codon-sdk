@@ -3,7 +3,6 @@
 ## Prerequisites
 - Python 3.9 or newer
 - `pip` and a virtual environment tool such as `venv` or `pipenv`
-- Access to an OTLP-compatible collector if you plan to export telemetry
 
 **Source code:** [Codon SDK on GitHub](https://github.com/Codon-Ops/codon-sdk)
 
@@ -59,8 +58,7 @@ pip install codon-instrumentation-langgraph
 | -------- | ------- |
 | `ORG_NAMESPACE` | Required by `NodeSpec` and instrumentation to scope identifiers. |
 | `CODON_API_KEY` | Required to export telemetry data to the Codon observability platform. |
-| `OTEL_SERVICE_NAME` | Optional service name applied during telemetry initialization. |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Configure the OTLP collector when using the default exporter. |
+| `OTEL_SERVICE_NAME` | Default service name for telemetry (overridden by service_name parameter). |
 
 Set `ORG_NAMESPACE` before constructing `NodeSpec` objects or instrumented decorators will raise a validation error.
 
@@ -69,7 +67,6 @@ You can set these environment variables directly:
 ```bash
 export ORG_NAMESPACE=your-org-name
 export OTEL_SERVICE_NAME=your-service-name  # optional
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317  # optional
 export CODON_API_KEY=your-api-key-from-dashboard  # required for telemetry on Codon platform
 ```
 
@@ -81,7 +78,6 @@ ORG_NAMESPACE=your-org-name
 
 # Optional - only needed if using telemetry
 OTEL_SERVICE_NAME=your-service-name
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 
 # Required for captured telemetry visible on Codon platform
 CODON_API_KEY=your-api-key-from-dashboard
@@ -103,7 +99,6 @@ Call `initialize_telemetry()` once at the start of your application, before crea
 - Configures OpenTelemetry to export spans to the Codon platform
 - Automatically uses your `CODON_API_KEY` environment variable for authentication (can be overridden with `api_key` parameter)
 - Uses `OTEL_SERVICE_NAME` for service identification, with function parameter taking precedence
-- Exports to Codon production servers by default, unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set
 - Works for both [from-scratch workloads](building-from-scratch.md) and [framework integrations](instrumentation/langgraph.md)
 - If you have existing OpenTelemetry setup, set `CODON_ATTACH_TO_EXISTING_OTEL_PROVIDER=true` to add Codon's exporter instead of replacing your configuration
 
