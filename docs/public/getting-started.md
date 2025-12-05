@@ -2,7 +2,7 @@
 
 ## Prerequisites
 - Python 3.9 or newer
-- `pip` and a virtual environment tool such as `venv` or `pipenv`
+- `pip`
 
 **Source code:** [Codon SDK on GitHub](https://github.com/Codon-Ops/codon-sdk)
 
