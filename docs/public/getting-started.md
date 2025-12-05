@@ -99,7 +99,7 @@ initialize_telemetry()
 
 Call `initialize_telemetry()` once at the start of your application, before creating workloads or executing agents. This function:
 
-- Configures OpenTelemetry to export spans to the Codon platform
+- Configures OpenTelemetry to export spans to the configured endpoint
 - Automatically uses your `CODON_API_KEY` environment variable for authentication (can be overridden with `api_key` parameter)
 - Uses `OTEL_SERVICE_NAME` for service identification, with function parameter taking precedence
 - Works for both [from-scratch workloads](building-from-scratch.md) and [framework integrations](instrumentation/langgraph.md)
