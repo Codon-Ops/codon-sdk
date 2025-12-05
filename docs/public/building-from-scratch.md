@@ -189,7 +189,7 @@ final_document = multi_report.node_results("writer")[-1]
 
 ## Platform Integration
 
-The `initialize_telemetry()` function shown in the examples above connects your CodonWorkload executions to the Codon observability platform. Call it once at application startup to unlock comprehensive observability.
+The `initialize_telemetry()` function shown in the examples above connects your CodonWorkload executions to the configured endpoint. Call it once at application startup to unlock comprehensive observability.
 
 **Benefits of platform integration:**
 
@@ -200,6 +200,8 @@ The `initialize_telemetry()` function shown in the examples above connects your 
 - **Debug workflows**: Inspect failed executions with full context and provenance
 
 When you execute workloads after initializing telemetry, each node function call, `runtime.emit()`, and `runtime.record_event()` creates structured telemetry data that appears in your Codon dashboard. This gives you the same observability benefits that [LangGraph users](instrumentation/langgraph.md) get automatically.
+
+**Configuration:** See [Getting Started - Initializing Telemetry](getting-started.md#initializing-telemetry) for configuration options.
 
 ## Telemetry Configuration
 

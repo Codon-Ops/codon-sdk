@@ -59,6 +59,7 @@ pip install codon-instrumentation-langgraph
 | `ORG_NAMESPACE` | Required by `NodeSpec` and instrumentation to scope identifiers. |
 | `CODON_API_KEY` | Required to export telemetry data to the Codon observability platform. |
 | `OTEL_SERVICE_NAME` | Default service name for telemetry (overridden by service_name parameter). |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Configure custom OTLP collector endpoint. |
 
 Set `ORG_NAMESPACE` before constructing `NodeSpec` objects or instrumented decorators will raise a validation error.
 
@@ -67,6 +68,7 @@ You can set these environment variables directly:
 ```bash
 export ORG_NAMESPACE=your-org-name
 export OTEL_SERVICE_NAME=your-service-name  # default service name
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 export CODON_API_KEY=your-api-key-from-dashboard  # required for telemetry on Codon platform
 ```
 
@@ -78,6 +80,7 @@ ORG_NAMESPACE=your-org-name
 
 # Optional - default service name (overridden by function parameter)
 OTEL_SERVICE_NAME=your-service-name
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 
 # Required for captured telemetry visible on Codon platform
 CODON_API_KEY=your-api-key-from-dashboard
