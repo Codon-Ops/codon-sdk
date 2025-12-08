@@ -39,8 +39,11 @@ def clear_env(monkeypatch):
         "OTEL_EXPORTER_OTLP_ENDPOINT",
         "OTEL_SERVICE_NAME",
         "CODON_ATTACH_TO_EXISTING_OTEL_PROVIDER",
+        "CODON_ORG_LOOKUP_URL",
+        "CODON_ORG_LOOKUP_TIMEOUT",
     ]:
         monkeypatch.delenv(key, raising=False)
+    instrumentation_config.set_default_org_namespace(None)
     yield
 
 
