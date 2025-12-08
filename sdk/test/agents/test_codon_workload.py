@@ -240,6 +240,9 @@ def test_tracing_opt_in_emits_spans(monkeypatch):
         assert span.attributes.get("codon.workload.logic_id") == workload.logic_id
         assert span.attributes.get("codon.workload.run_id")
         assert span.attributes.get("codon.workload.deployment_id") == "dev-trace"
+        assert span.attributes.get("org.namespace") == "test-org"
+        # organization id defaults to namespace in this test setup
+        assert span.attributes.get("codon.organization.id") == "test-org"
     exporter.clear()
 
 

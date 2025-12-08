@@ -24,7 +24,8 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 import logging
-from codon_sdk.instrumentation.schemas.nodespec import set_default_org_namespace
+from codon_sdk.instrumentation.schemas.nodespec import set_default_org_namespace, set_default_org_identity
+from codon_sdk.instrumentation.telemetry import NodeTelemetryPayload
 
 # Avoid configuring root logger; module-level logger only.
 logger = logging.getLogger(__name__)
@@ -107,6 +108,8 @@ def initialize_telemetry(
         )
         if org_namespace:
             set_default_org_namespace(org_namespace)
+        if org_id or org_namespace:
+            set_default_org_identity(org_id, org_namespace)
         if not org_namespace or not org_id:
             logger.warning(
                 "Unable to resolve organization metadata from API key via %s; spans and NodeSpecs will omit org unless provided elsewhere",

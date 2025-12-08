@@ -53,6 +53,7 @@ class NodeSpecEnv(BaseModel):
 
 nodespec_env = NodeSpecEnv()
 _RESOLVED_ORG_NAMESPACE: Optional[str] = None
+_RESOLVED_ORG_ID: Optional[str] = None
 
 
 def set_default_org_namespace(namespace: Optional[str]) -> None:
@@ -60,6 +61,15 @@ def set_default_org_namespace(namespace: Optional[str]) -> None:
 
     global _RESOLVED_ORG_NAMESPACE
     _RESOLVED_ORG_NAMESPACE = namespace
+
+
+def set_default_org_identity(org_id: Optional[str], namespace: Optional[str]) -> None:
+    """Set process-wide default org id/namespace, typically from API-key lookup."""
+
+    global _RESOLVED_ORG_ID, _RESOLVED_ORG_NAMESPACE
+    _RESOLVED_ORG_ID = org_id
+    if namespace is not None:
+        _RESOLVED_ORG_NAMESPACE = namespace
 
 
 class NodeSpec(BaseModel):

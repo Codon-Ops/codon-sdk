@@ -25,7 +25,12 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
 from .attributes import LangGraphSpanAttributes
-from codon_sdk.instrumentation.schemas.nodespec import NodeSpec, NodeSpecSpanAttributes
+from codon_sdk.instrumentation.schemas.nodespec import (
+    NodeSpec,
+    NodeSpecSpanAttributes,
+    _RESOLVED_ORG_ID,
+    _RESOLVED_ORG_NAMESPACE,
+)
 from codon_sdk.agents import Workload
 from codon_sdk.instrumentation.schemas.telemetry.spans import CodonBaseSpanAttributes
 from codon_sdk.instrumentation.telemetry import NodeTelemetryPayload
@@ -145,25 +150,35 @@ def _apply_workload_attributes(
 ) -> None:
     workload = getattr(runtime, "_workload", None)
 
-    organization = (
-        telemetry.organization_id
-        or telemetry.org_namespace
-        or context.get("organization_id")
-        or context.get("org_namespace")
-        or (workload.organization_id if workload else None)
-        or nodespec.org_namespace
-        or ORG_NAMESPACE
-    )
-
     span.set_attribute(
         CodonBaseSpanAttributes.AgentFramework.value,
         __framework__,
     )
-    if organization:
-        span.set_attribute(CodonBaseSpanAttributes.OrganizationId.value, organization)
-        span.set_attribute(CodonBaseSpanAttributes.OrgNamespace.value, organization)
-        telemetry.organization_id = telemetry.organization_id or organization
-        telemetry.org_namespace = telemetry.org_namespace or organization
+
+    resource_attrs = getattr(getattr(span, "resource", None), "attributes", {}) or {}
+    org_id = (
+        _RESOLVED_ORG_ID
+        or resource_attrs.get(CodonBaseSpanAttributes.OrganizationId.value)
+        or telemetry.organization_id
+        or context.get("organization_id")
+        or (workload.organization_id if workload else None)
+    )
+    org_namespace = (
+        telemetry.org_namespace
+        or context.get("org_namespace")
+        or (workload.organization_id if workload else None)
+        or resource_attrs.get(CodonBaseSpanAttributes.OrgNamespace.value)
+        or nodespec.org_namespace
+        or _RESOLVED_ORG_NAMESPACE
+        or ORG_NAMESPACE
+    )
+
+    if org_id:
+        span.set_attribute(CodonBaseSpanAttributes.OrganizationId.value, org_id)
+        telemetry.organization_id = telemetry.organization_id or org_id
+    if org_namespace:
+        span.set_attribute(CodonBaseSpanAttributes.OrgNamespace.value, org_namespace)
+        telemetry.org_namespace = telemetry.org_namespace or org_namespace
 
     workload_id = telemetry.workload_id or context.get("workload_id") or (
         workload.agent_class_id if workload else None

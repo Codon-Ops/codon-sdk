@@ -179,3 +179,56 @@ def test_attach_flag_argument_overrides_env(monkeypatch):
     # attach disabled -> new provider set
     assert "provider" in captured
     assert captured["provider"] is not existing
+
+
+def test_org_lookup_success(monkeypatch):
+    monkeypatch.setenv("CODON_API_KEY", "env-key")
+    monkeypatch.setenv("CODON_ORG_LOOKUP_URL", "http://lookup")
+
+    captured = {}
+
+    class DummyExporter:
+        def __init__(self, *, endpoint=None, headers=None, **kwargs):
+            captured["endpoint"] = endpoint
+            captured["headers"] = headers
+
+    class DummyResource:
+        def __init__(self, *, attributes):
+            self.attributes = attributes
+
+        def merge(self, other):
+            merged = dict(self.attributes)
+            merged.update(other.attributes)
+            return DummyResource(attributes=merged)
+
+    def fake_lookup(*args, **kwargs):
+        return ("ORG-1", "ns-1")
+
+    _patch_base(monkeypatch, existing_provider=object())
+    monkeypatch.setattr(
+        instrumentation_config,
+        "OTLPSpanExporter",
+        DummyExporter,
+    )
+    monkeypatch.setattr(
+        instrumentation_config,
+        "Resource",
+        DummyResource,
+    )
+    monkeypatch.setattr(
+        instrumentation_config,
+        "_resolve_org_metadata",
+        lambda **kwargs: fake_lookup(),
+    )
+    provider_holder = {}
+    monkeypatch.setattr(
+        instrumentation_config.trace,
+        "set_tracer_provider",
+        lambda provider: provider_holder.setdefault("provider", provider),
+    )
+
+    instrumentation_config.initialize_telemetry()
+    provider = provider_holder["provider"]
+    attrs = provider.resource.attributes
+    assert attrs["codon.organization.id"] == "ORG-1"
+    assert attrs["org.namespace"] == "ns-1"

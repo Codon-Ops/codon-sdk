@@ -55,6 +55,7 @@ from codon_sdk.instrumentation.schemas.logic_id import (
 from codon_sdk.instrumentation.schemas.nodespec import NodeSpec, NodeSpecSpanAttributes
 from codon_sdk.instrumentation.telemetry import NodeTelemetryPayload
 from codon_sdk.instrumentation.schemas.telemetry.spans import CodonBaseSpanAttributes
+from codon_sdk.instrumentation.schemas.nodespec import nodespec_env, _RESOLVED_ORG_NAMESPACE, _RESOLVED_ORG_ID
 
 from .workload import Workload
 
@@ -103,17 +104,23 @@ def _apply_workload_attributes(
     span, *, telemetry: NodeTelemetryPayload, nodespec: NodeSpec, context: Dict[str, Any]
 ) -> None:
     span.set_attribute(CodonBaseSpanAttributes.AgentFramework.value, "codon")
-    organization = (
+    resource_attrs = getattr(getattr(span, "resource", None), "attributes", {}) or {}
+    org_id = (
         telemetry.organization_id
-        or telemetry.org_namespace
         or context.get("organization_id")
+        or resource_attrs.get(CodonBaseSpanAttributes.OrganizationId.value)
+    )
+    org_namespace = (
+        telemetry.org_namespace
         or context.get("org_namespace")
+        or resource_attrs.get(CodonBaseSpanAttributes.OrgNamespace.value)
         or nodespec.org_namespace
         or os.getenv("ORG_NAMESPACE")
     )
-    if organization:
-        span.set_attribute(CodonBaseSpanAttributes.OrganizationId.value, organization)
-        span.set_attribute(CodonBaseSpanAttributes.OrgNamespace.value, organization)
+    if org_id:
+        span.set_attribute(CodonBaseSpanAttributes.OrganizationId.value, org_id)
+    if org_namespace:
+        span.set_attribute(CodonBaseSpanAttributes.OrgNamespace.value, org_namespace)
 
     workload_id = telemetry.workload_id or context.get("workload_id")
     logic_id = telemetry.workload_logic_id or context.get("logic_id")
@@ -399,7 +406,7 @@ class CodonWorkload(Workload):
         self._agent_class_id: Optional[str] = None
         self._logic_id: Optional[str] = None
         self._entry_nodes: Optional[List[str]] = None
-        self._organization_id: Optional[str] = os.getenv("ORG_NAMESPACE")
+        self._organization_id: Optional[str] = _RESOLVED_ORG_ID or os.getenv("ORG_NAMESPACE")
         self._enable_tracing = enable_tracing
         super().__init__(
             name=name,
@@ -481,7 +488,8 @@ class CodonWorkload(Workload):
         self._node_functions[name] = function
         self._predecessors.setdefault(name, set())
         self._successors.setdefault(name, set())
-        self._organization_id = nodespec.org_namespace
+        if self._organization_id is None:
+            self._organization_id = nodespec.org_namespace
         self._update_logic_identity()
         return nodespec
 
@@ -551,8 +559,9 @@ class CodonWorkload(Workload):
             "workload_run_id": run_id,
             "run_id": run_id,
             "workload_name": self.metadata.name,
-            "organization_id": self.organization_id,
-            "org_namespace": self.organization_id,
+            # Authoritative org defaults seeded from resolved lookup; namespace kept separate.
+            "organization_id": _RESOLVED_ORG_ID or self.organization_id,
+            "org_namespace": _RESOLVED_ORG_NAMESPACE or self.organization_id or os.getenv(nodespec_env.OrgNamespace),
             "workload_version": self.metadata.version,
             **kwargs,
         }
@@ -653,8 +662,8 @@ class CodonWorkload(Workload):
                 workload_logic_id=self.logic_id,
                 workload_run_id=run_id,
                 deployment_id=deployment_id,
-                organization_id=self.organization_id,
-                org_namespace=self.organization_id,
+                organization_id=context.get("organization_id"),
+                org_namespace=context.get("org_namespace"),
                 nodespec_id=nodespec.id,
                 node_name=nodespec.name,
                 node_role=nodespec.role,
