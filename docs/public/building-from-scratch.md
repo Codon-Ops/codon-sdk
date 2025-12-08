@@ -191,6 +191,11 @@ final_document = multi_report.node_results("writer")[-1]
 
 The `initialize_telemetry()` function shown in the examples above connects your CodonWorkload executions to the configured endpoint. Call it once at application startup to unlock comprehensive observability.
 
+**Platform Setup Required**: Before initializing telemetry, you need a Codon API key. Follow the [Platform Setup guide](getting-started.md#platform-setup) to:
+1. Create your Codon account
+2. Obtain your API key  
+3. Set the `CODON_API_KEY` environment variable
+
 **Benefits of platform integration:**
 
 - **Node-level spans**: Every node execution becomes an OpenTelemetry span with input/output data
