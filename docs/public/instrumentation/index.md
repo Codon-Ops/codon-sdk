@@ -22,10 +22,10 @@ Instrumentation packages are installed separately from the core SDK:
 
 ```bash
 # Install core SDK
-pip install -e sdk
+pip install codon-sdk
 
 # Install specific instrumentation packages as needed
-pip install -e instrumentation-packages/codon-instrumentation-langgraph
+pip install codon-instrumentation-langgraph
 ```
 
 Each integration provides telemetry and observability for its respective framework while working alongside the core Codon SDK.
