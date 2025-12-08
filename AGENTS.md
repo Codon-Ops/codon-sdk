@@ -8,6 +8,7 @@ This document is a living map for developers building agents in the Codon ecosys
 - [`instrumentation-packages/codon-instrumentation-langgraph/AGENTS.md`](instrumentation-packages/codon-instrumentation-langgraph/AGENTS.md) covers the LangGraph decorators, the `LangGraphWorkloadAdapter`, and how to inherit telemetry automatically.
 - [`instrumentation-packages/codon-instrumentation-openai/AGENTS.md`](instrumentation-packages/codon-instrumentation-openai/AGENTS.md) will track OpenAI-specific instrumentation work. It currently outlines expectations and open tasks.
 - Telemetry initialization now lives in the core SDK (`codon_sdk.instrumentation.initialize_telemetry`), with a hardcoded production default endpoint and API-key header support. Framework packages re-export this entrypoint to stay aligned. CodonWorkload can emit spans on its own when `enable_tracing=True` (default: False); leave it disabled if another instrumentation layer is already wrapping nodes to avoid duplicate spans.
+- Auto-instrumentation note: a configurator hook exists (`OTEL_PYTHON_CONFIGURATOR=codon_sdk.instrumentation.config:otel_configure`) to run Codon telemetry init during `opentelemetry-instrument`, but this path is not yet verified end-to-end and may block telemetry. Prefer explicit `initialize_telemetry()` for now; revisit auto-instrumentation stability later.
 
 If you are introducing a new framework integration, create an `AGENTS.md` alongside it and link back here.
 

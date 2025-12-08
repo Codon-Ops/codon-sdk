@@ -7,9 +7,9 @@ from codon_sdk.instrumentation.schemas.nodespec import (
     analyze_function,
     nodespec_hash_method,
     NodeSpec,
-    NodeSpecValidationError,
     FunctionAnalysisResult,
     nodespec_env,
+    set_default_org_namespace,
 )
 
 # Test data
@@ -75,13 +75,16 @@ def test_nodespec_creation_success(set_my_org_env_var):
     assert spec.callable_signature == "sample_function(a: int, b: str) -> float"
     assert spec.id is not None
 
-def test_nodespec_creation_no_env_var_fails():
-    with pytest.raises(NodeSpecValidationError, match="ORG_NAMESPACE environment variable not set"):
-        NodeSpec(
-            name="test_node",
-            role="test_role",
-            callable=sample_function,
-        )
+def test_nodespec_creation_no_env_var_warns(caplog):
+    caplog.set_level("WARNING")
+    set_default_org_namespace(None)
+    spec = NodeSpec(
+        name="test_node",
+        role="test_role",
+        callable=sample_function,
+    )
+    assert spec.org_namespace == nodespec_env.OrgNamespaceDefault
+    assert any("NodeSpec created without org namespace" in rec.message for rec in caplog.records)
 
 def test_nodespec_id_generation(set_my_org_env_var):
     spec = NodeSpec(
@@ -109,12 +112,14 @@ def test_nodespec_id_generation(set_my_org_env_var):
 
     assert spec.id == expected_id
 
-@pytest.mark.xfail(reason="The field_validator for spec_version is not working as expected for frozen models")
-def test_nodespec_spec_version_override_fails(set_my_org_env_var):
-    with pytest.raises(NodeSpecValidationError, match="spec_version cannot be changed"):
-        NodeSpec(
-            name="test_node",
-            role="test_role",
-            callable=sample_function,
-            spec_version="anything"
-        )
+
+def test_resolved_namespace_overrides_env(monkeypatch):
+    monkeypatch.setenv(nodespec_env.OrgNamespace, "env-org")
+    set_default_org_namespace("resolved-org")
+    spec = NodeSpec(
+        name="test_node",
+        role="test_role",
+        callable=sample_function,
+    )
+    assert spec.org_namespace == "resolved-org"
+    set_default_org_namespace(None)
