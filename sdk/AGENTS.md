@@ -86,6 +86,7 @@ For a full walkthrough, see `docs/guides/codon-workload-quickstart.md`.
 - CodonWorkload can emit spans natively when `enable_tracing=True` (default: False). It uses the global tracer provider configured via `initialize_telemetry` to create one span per node execution with workload/org/deployment IDs, logic/run IDs, and NodeSpec attributes. Leave it disabled if another instrumentation layer (e.g., LangGraph adapter) is already wrapping nodes to avoid duplicate spans.
 - Organization metadata: when an API key is present and an org lookup URL is configured, `initialize_telemetry` will resolve the organization and namespace and apply them to telemetry resources and as the default `org_namespace` for NodeSpecs (overriding `ORG_NAMESPACE`). If no org is resolved, NodeSpecs fall back to `ORG_NAMESPACE` or a placeholder with a warning to avoid crashes.
 - Auto-instrumentation: a configurator hook exists (`OTEL_PYTHON_CONFIGURATOR=codon_sdk.instrumentation.config:otel_configure`) to run Codon telemetry init during `opentelemetry-instrument`, but this path is not yet stable end-to-end. For reliable results, call `initialize_telemetry()` explicitly; revisit the configurator once validated.
+- Span org attributes: `codon.organization.id` now prefers the ID resolved via API-key lookup or the execution context, while `org.namespace` uses the namespace; they are no longer forced to the same value when both are available.
 
 ## Extending the SDK
 - Capture requirements for new schema fields inside each class docstring and mirror them here.
