@@ -12,7 +12,7 @@ To access the Codon observability platform and export telemetry data, you'll nee
 
 ### Step 1: Access the Login Screen
 
-Navigate to the Codon platform and click 'Sign in with Github':
+Navigate to the [Codon platform](http://optimization.codonops.ai/login) and click 'Sign in with Github':
 
 ![Login Screen](images/auth/step1-login-screen.png)
 
