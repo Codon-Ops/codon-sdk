@@ -56,33 +56,19 @@ pip install codon-instrumentation-langgraph
 ## Environment Configuration
 | Variable | Purpose |
 | -------- | ------- |
-| `ORG_NAMESPACE` | Required by `NodeSpec` and instrumentation to scope identifiers. |
-| `CODON_API_KEY` | Required to export telemetry data to the Codon observability platform. |
-| `OTEL_SERVICE_NAME` | Default service name for telemetry (overridden by service_name parameter). |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Configure custom OTLP collector endpoint. |
+| `CODON_API_KEY` | Required to export telemetry data and auto-resolve organization namespace. |
 
-Set `ORG_NAMESPACE` before constructing `NodeSpec` objects or instrumented decorators will raise a validation error.
+The `CODON_API_KEY` automatically configures telemetry and resolves your organization namespace.
 
 You can set these environment variables directly:
 
 ```bash
-export ORG_NAMESPACE=your-org-name
-export OTEL_SERVICE_NAME=your-service-name  # default service name
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-export CODON_API_KEY=your-api-key-from-dashboard  # required for telemetry on Codon platform
+export CODON_API_KEY=your-api-key-from-dashboard
 ```
 
 Or create a `.env` file in your project root:
 
 ```bash
-# Required
-ORG_NAMESPACE=your-org-name
-
-# Optional - default service name (overridden by function parameter)
-OTEL_SERVICE_NAME=your-service-name
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-
-# Required for captured telemetry visible on Codon platform
 CODON_API_KEY=your-api-key-from-dashboard
 ```
 
@@ -99,9 +85,8 @@ initialize_telemetry()
 
 Call `initialize_telemetry()` once at the start of your application, before creating workloads or executing agents. This function:
 
-- Configures OpenTelemetry to export spans to the configured endpoint (via `OTEL_EXPORTER_OTLP_ENDPOINT`)
+- Configures OpenTelemetry to export spans to the Codon platform
 - Automatically uses your `CODON_API_KEY` environment variable for authentication (can be overridden with `api_key` parameter)
-- Uses `OTEL_SERVICE_NAME` for service identification, with function parameter taking precedence
 - Works for both [from-scratch workloads](building-from-scratch.md) and [framework integrations](instrumentation/langgraph.md)
 
 **Example with service name:**

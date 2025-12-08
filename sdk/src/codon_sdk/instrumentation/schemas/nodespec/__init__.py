@@ -21,7 +21,9 @@ import hashlib
 import inspect
 import json
 import os
+import logging
 
+logger = logging.getLogger(__name__)
 
 class FunctionAnalysisResult(BaseModel):
     name: str = Field(description="The name of the function.")
@@ -44,21 +46,29 @@ class NodeSpecEnv(BaseModel):
         description="The namespace of the calling organization.",
     )
     OrgNamespaceDefault: str = Field(
-        default="local",
-        description="The default ORG_NAMESPACE value."
+        default="unknown",
+        description="The default ORG_NAMESPACE value used when none is provided."
     )
 
 
 nodespec_env = NodeSpecEnv()
+_RESOLVED_ORG_NAMESPACE: Optional[str] = None
+
+
+def set_default_org_namespace(namespace: Optional[str]) -> None:
+    """Set a process-wide default org namespace, typically from API-key lookup."""
+
+    global _RESOLVED_ORG_NAMESPACE
+    _RESOLVED_ORG_NAMESPACE = namespace
 
 
 class NodeSpec(BaseModel):
     """Immutable specification that introspects Python callables and generates stable SHA-256 identifiers.
 
-    NodeSpec inspects Python callables to capture the function signature, type hints, and optional 
+    NodeSpec inspects Python callables to capture the function signature, type hints, and optional
     model metadata. It emits a deterministic SHA-256 ID that downstream systems can rely on.
 
-    NodeSpec requires type annotations to build JSON schemas for inputs and outputs. If annotations 
+    NodeSpec requires type annotations to build JSON schemas for inputs and outputs. If annotations
     are missing, the generated schemas may be empty.
     """
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -120,7 +130,7 @@ class NodeSpec(BaseModel):
         Example:
             >>> nodespec = NodeSpec(
             ...     org_namespace="acme",
-            ...     name="summarize", 
+            ...     name="summarize",
             ...     role="processor",
             ...     callable=summarize_function,
             ...     model_name="gpt-4o",
@@ -130,10 +140,14 @@ class NodeSpec(BaseModel):
         """
 
         callable_attrs = analyze_function(callable)
-        namespace = org_namespace or os.getenv(nodespec_env.OrgNamespace)
+        # Precedence: resolved default (e.g., from API-key lookup) > explicit arg/env > default placeholder
+        namespace = _RESOLVED_ORG_NAMESPACE or org_namespace or os.getenv(nodespec_env.OrgNamespace)
         if not namespace:
-            raise NodeSpecValidationError(
-                f"{nodespec_env.OrgNamespace} environment variable not set."
+            namespace = nodespec_env.OrgNamespaceDefault
+            logger.warning(
+                "NodeSpec created without org namespace; defaulting to '%s'. "
+                "Provide an API key or set ORG_NAMESPACE to avoid shared identifiers.",
+                namespace,
             )
 
         nodespec_id = self._generate_nodespec_id(
