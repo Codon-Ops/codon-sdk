@@ -245,6 +245,7 @@ When you execute workloads after initializing telemetry, each node function call
 
 ### Runtime Operations
 The `runtime` parameter provides access to workflow operations:
+
 - `runtime.emit(node_name, payload)` - Send tokens to other nodes
 - `runtime.record_event(event_type, metadata={})` - Add custom audit entries
 - `runtime.state` - Shared dictionary for coordination between nodes
@@ -252,6 +253,7 @@ The `runtime` parameter provides access to workflow operations:
 
 ### Audit Ledger
 Every workflow execution generates a comprehensive audit trail:
+
 - Token enqueue/dequeue events
 - Node completion events  
 - Custom events via `runtime.record_event()`
