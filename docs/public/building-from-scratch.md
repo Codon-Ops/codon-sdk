@@ -33,6 +33,10 @@ Retrieves all outputs from a specific node during workload execution. Returns a 
 - **Multiple executions**: If a node runs multiple times, you get all results as a list
 - **Parameters**: See [node_results() API reference](api-reference.md#codon_sdk.agents.ExecutionReport.node_results) for details
 
+**`report.ledger`**
+
+Complete audit trail of execution events for compliance monitoring and debugging.
+
 **Key Properties**
 
 - **`logic_id`**: Unique identifier for this specific workload configuration. Changes when nodes/edges are modified. See [logic_id API reference](api-reference.md#codon_sdk.agents.CodonWorkload.logic_id).
