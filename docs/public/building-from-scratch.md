@@ -35,8 +35,8 @@ Retrieves all outputs from a specific node during workload execution. Returns a 
 
 **Key Properties**
 
-- **`logic_id`**: Unique identifier for this specific workload configuration. Changes when nodes/edges are modified.
-- **`agent_class_id`**: Stable identifier for this workload type (format: 'name:version'). Consistent across deployments.
+- **`logic_id`**: Unique identifier for this specific workload configuration. Changes when nodes/edges are modified. See [logic_id API reference](api-reference.md#codon_sdk.agents.CodonWorkload.logic_id).
+- **`agent_class_id`**: Stable identifier for this workload type (format: 'name:version'). Consistent across deployments. See [agent_class_id API reference](api-reference.md#codon_sdk.agents.CodonWorkload.agent_class_id).
 
 ## Key Concepts
 

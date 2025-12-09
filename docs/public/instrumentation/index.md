@@ -29,3 +29,5 @@ pip install codon-instrumentation-langgraph
 ```
 
 Each integration provides telemetry and observability for its respective framework while working alongside the core Codon SDK.
+
+**Universal Interface:** All instrumentation packages convert framework-specific workflows into standard CodonWorkloads. This means you get the same `execute()`, `execute_async()`, `node_results()`, and other methods regardless of whether you built from scratch or wrapped an existing framework. See [Execution and Results](../building-from-scratch.md#execution-and-results) for the complete interface.
