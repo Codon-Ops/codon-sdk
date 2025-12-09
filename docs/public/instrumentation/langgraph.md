@@ -1,6 +1,6 @@
 # For LangGraph Users
 
-If you're already using LangGraph, the Codon SDK provides seamless integration through the `LangGraphWorkloadAdapter`. This allows you to wrap your existing StateGraphs with minimal code changes while gaining comprehensive telemetry and observability.
+If you're already using LangGraph, the Codon SDK provides seamless integration through the `LangGraphWorkloadAdapter`. This allows you to wrap your existing StateGraphs with minimal code changes while gaining comprehensive telemetry and observability. See [Execution and Results](../building-from-scratch.md#execution-and-results) for the complete interface that becomes available.
 
 ## Understanding State Graph vs Compiled Graph
 
