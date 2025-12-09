@@ -218,6 +218,15 @@ class ExecutionReport:
     context: Dict[str, Any]
 
     def node_results(self, node: str) -> List[Any]:
+        """Get all results from a specific node during execution.
+
+        Args:
+            node: Name of the node to retrieve results from.
+
+        Returns:
+            List of results in execution order. Empty list if node never executed.
+            Use [-1] to get the most recent result if node executed multiple times.
+        """
         return [record.result for record in self.results.get(node, [])]
 
 
@@ -410,12 +419,23 @@ class CodonWorkload(Workload):
 
     @property
     def agent_class_id(self) -> str:
+        """Stable identifier for this workload type.
+        
+        Format is 'name:version' (e.g., 'my-agent:1.0.0'). Remains consistent 
+        across deployments as long as name and version don't change.
+        """
         if self._agent_class_id is None:
             raise WorkloadRegistrationError("Agent class ID has not been computed")
         return self._agent_class_id
 
     @property
     def logic_id(self) -> str:
+        """Unique identifier for this specific workload configuration.
+        
+        Generated from the complete workload structure (nodes, edges, topology).
+        Changes whenever nodes or edges are added/modified, useful for detecting
+        workload configuration changes.
+        """
         if self._logic_id is None:
             raise WorkloadRegistrationError("Logic ID has not been computed")
         return self._logic_id
