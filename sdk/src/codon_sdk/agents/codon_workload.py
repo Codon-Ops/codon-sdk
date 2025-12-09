@@ -218,6 +218,15 @@ class ExecutionReport:
     context: Dict[str, Any]
 
     def node_results(self, node: str) -> List[Any]:
+        """Get all results from a specific node during execution.
+
+        Args:
+            node: Name of the node to retrieve results from.
+
+        Returns:
+            List of results in execution order. Empty list if node never executed.
+            Use [-1] to get the most recent result if node executed multiple times.
+        """
         return [record.result for record in self.results.get(node, [])]
 
 
@@ -410,12 +419,23 @@ class CodonWorkload(Workload):
 
     @property
     def agent_class_id(self) -> str:
+        """Stable identifier for this workload type.
+        
+        Format is 'name:version' (e.g., 'my-agent:1.0.0'). Remains consistent 
+        across deployments as long as name and version don't change.
+        """
         if self._agent_class_id is None:
             raise WorkloadRegistrationError("Agent class ID has not been computed")
         return self._agent_class_id
 
     @property
     def logic_id(self) -> str:
+        """Unique identifier for this specific workload configuration.
+        
+        Generated from the complete workload structure (nodes, edges, topology).
+        Changes whenever nodes or edges are added/modified, useful for detecting
+        workload configuration changes.
+        """
         if self._logic_id is None:
             raise WorkloadRegistrationError("Logic ID has not been computed")
         return self._logic_id
@@ -521,6 +541,24 @@ class CodonWorkload(Workload):
         event_handler: Optional[Callable[[StreamEvent], Awaitable[None]]] = None,
         **kwargs: Any,
     ) -> ExecutionReport:
+        """Execute the workload asynchronously.
+
+        Args:
+            payload: Initial data passed to entry nodes as token payload.
+            deployment_id: Identifier for this deployment (required, used in telemetry context).
+            entry_nodes: List of node names to start execution from. If None, uses nodes with 
+                no predecessors, or all nodes if no entry nodes are found.
+            max_steps: Maximum execution steps before raising WorkloadRuntimeError (default: 1000).
+            event_handler: Optional callback for streaming execution events.
+            **kwargs: Additional arguments for execution context.
+
+        Returns:
+            ExecutionReport: Execution results with node outputs and audit logs.
+
+        Raises:
+            ValueError: If deployment_id is empty.
+            WorkloadRuntimeError: If no nodes registered, entry nodes invalid, or max_steps exceeded.
+        """
         if not deployment_id:
             raise ValueError("deployment_id is required when executing a workload")
         if not self._node_specs:
@@ -796,6 +834,23 @@ class CodonWorkload(Workload):
         max_steps: int = 1000,
         **kwargs: Any,
     ) -> ExecutionReport:
+        """Execute the workload synchronously.
+
+        Args:
+            payload: Initial data passed to entry nodes as token payload.
+            deployment_id: Identifier for this deployment (required, used in telemetry context).
+            entry_nodes: List of node names to start execution from. If None, uses nodes with 
+                no predecessors, or all nodes if no entry nodes are found.
+            max_steps: Maximum execution steps before raising WorkloadRuntimeError (default: 1000).
+            **kwargs: Additional arguments passed to execute_async.
+
+        Returns:
+            ExecutionReport: Execution results with node outputs and audit logs.
+
+        Raises:
+            ValueError: If deployment_id is empty.
+            WorkloadRuntimeError: If no nodes registered, entry nodes invalid, or max_steps exceeded.
+        """
         return _run_coroutine_sync(
             lambda: self.execute_async(
                 payload,

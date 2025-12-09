@@ -16,6 +16,32 @@ CodonWorkload is the foundation for building observable AI agents. Whether you b
 
 For complete method signatures and parameters, see the [API Reference](api-reference.md).
 
+### Execution and Results
+
+**`execute(payload, *, deployment_id, entry_nodes=None, max_steps=1000)`**
+
+Executes the workload synchronously and returns an `ExecutionReport`. This is the primary method for running workloads in synchronous contexts.
+
+- **Async alternative**: Use `execute_async()` for async/await environments
+- **Parameters**: See [execute() API reference](api-reference.md#codon_sdk.agents.CodonWorkload.execute) for details
+
+**`report.node_results(node_name)`**
+
+Retrieves all outputs from a specific node during workload execution. Returns a list of results in execution order.
+
+- **Usage**: `final_output = report.node_results("output_node")[-1]` gets the most recent result
+- **Multiple executions**: If a node runs multiple times, you get all results as a list
+- **Parameters**: See [node_results() API reference](api-reference.md#codon_sdk.agents.ExecutionReport.node_results) for details
+
+**`report.ledger`**
+
+Complete audit trail of execution events for compliance monitoring and debugging.
+
+**Key Properties**
+
+- **`logic_id`**: Unique identifier for this specific workload configuration. Changes when nodes/edges are modified. See [logic_id API reference](api-reference.md#codon_sdk.agents.CodonWorkload.logic_id).
+- **`agent_class_id`**: Stable identifier for this workload type (format: 'name:version'). Consistent across deployments. See [agent_class_id API reference](api-reference.md#codon_sdk.agents.CodonWorkload.agent_class_id).
+
 ## Key Concepts
 
 **Nodes**: Individual Python functions that perform specific tasks (e.g., "summarize", "validate", "format"). Each node receives input, processes it, and can emit output to other nodes.
@@ -106,7 +132,7 @@ workload.add_node(prompt_builder, name="prompt_builder", role="format_prompt")
 workload.add_edge("prompt_builder", "call_model")
 workload.add_edge("call_model", "finalize")
 
-# Execute the workload
+# Execute the workload (also available: execute_async() for async contexts)
 report = workload.execute({"question": "What is the meaning of life, the universe, and everything?"}, deployment_id="local")
 
 # Check results
@@ -183,6 +209,7 @@ def build_multi_agent_workload() -> CodonWorkload:
 # Use the multi-agent workload
 multi_agent = build_multi_agent_workload()
 project = {"topic": "The impact of community gardens on urban wellbeing"}
+# Execute workload (also available: execute_async() for async contexts)
 multi_report = multi_agent.execute(project, deployment_id="demo", max_steps=20)
 final_document = multi_report.node_results("writer")[-1]
 ```
@@ -218,6 +245,7 @@ When you execute workloads after initializing telemetry, each node function call
 
 ### Runtime Operations
 The `runtime` parameter provides access to workflow operations:
+
 - `runtime.emit(node_name, payload)` - Send tokens to other nodes
 - `runtime.record_event(event_type, metadata={})` - Add custom audit entries
 - `runtime.state` - Shared dictionary for coordination between nodes
@@ -225,6 +253,7 @@ The `runtime` parameter provides access to workflow operations:
 
 ### Audit Ledger
 Every workflow execution generates a comprehensive audit trail:
+
 - Token enqueue/dequeue events
 - Node completion events  
 - Custom events via `runtime.record_event()`

@@ -74,16 +74,18 @@ workload = LangGraphWorkloadAdapter.from_langgraph(
 )
 
 initial_state = {"topic": "Sustainable cities"}
+# Execute workload (also available: execute_async() for async contexts)
 report = workload.execute({"state": initial_state}, deployment_id="dev")
 print(report.node_results("writer")[-1])
 print(f"Ledger entries: {len(report.ledger)}")
 ```
 
 ### What Happened?
-1. Every LangGraph node was registered as a Codon node via `add_node`, producing a `NodeSpec`.
-2. Edges in the LangGraph became workload edges, so `runtime.emit` drives execution.
-3. `execute` seeded tokens with the provided state, ran the graph in token order, and captured telemetry & audit logs.
-4. You can inspect `report.ledger` for compliance, or `report.node_results(...)` for business outputs.
+1. **LangGraph → CodonWorkload**: Your LangGraph was converted into a standard CodonWorkload with the same execution interface as [building from scratch](../building-from-scratch.md#execution-and-results)
+2. **Node Registration**: Every LangGraph node was registered as a Codon node via `add_node`, producing a `NodeSpec`
+3. **Edge Conversion**: Edges in the LangGraph became workload edges, so `runtime.emit` drives execution
+4. **Token Execution**: `execute` seeded tokens with the provided state, ran the graph in token order, and captured telemetry & audit logs
+5. **Universal Interface**: You can use all the same methods - `execute()`, `report.node_results()`, `logic_id`, etc. - documented in [Execution and Results](../building-from-scratch.md#execution-and-results)
 
 ## Platform Integration
 
@@ -193,6 +195,7 @@ workload = LangGraphWorkloadAdapter.from_langgraph(
     name="ReflectiveAgent",
     version="0.1.0",
 )
+# Execute workload (also available: execute_async() for async contexts)
 result = workload.execute({"state": {"topic": "urban gardens"}}, deployment_id="demo")
 print(result.node_results("finalize")[-1])
 ```
