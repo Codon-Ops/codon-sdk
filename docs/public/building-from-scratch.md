@@ -16,6 +16,16 @@ CodonWorkload is the foundation for building observable AI agents. Whether you b
 
 For complete method signatures and parameters, see the [API Reference](api-reference.md).
 
+### Core Methods
+
+**`execute(payload, *, deployment_id, entry_nodes=None, max_steps=1000)`**
+
+Executes the workload synchronously and returns an `ExecutionReport`. This is the primary method for running workloads in synchronous contexts.
+
+- **Universal interface**: Works identically whether the workload was built from scratch or created via framework integrations (e.g., LangGraph)
+- **Async alternative**: Use `execute_async()` for async/await environments
+- **Parameters**: See [execute() API reference](api-reference.md#codon_sdk.agents.CodonWorkload.execute) for details
+
 ## Key Concepts
 
 **Nodes**: Individual Python functions that perform specific tasks (e.g., "summarize", "validate", "format"). Each node receives input, processes it, and can emit output to other nodes.
@@ -106,7 +116,7 @@ workload.add_node(prompt_builder, name="prompt_builder", role="format_prompt")
 workload.add_edge("prompt_builder", "call_model")
 workload.add_edge("call_model", "finalize")
 
-# Execute the workload
+# Execute the workload (also available: execute_async() for async contexts)
 report = workload.execute({"question": "What is the meaning of life, the universe, and everything?"}, deployment_id="local")
 
 # Check results
@@ -183,6 +193,7 @@ def build_multi_agent_workload() -> CodonWorkload:
 # Use the multi-agent workload
 multi_agent = build_multi_agent_workload()
 project = {"topic": "The impact of community gardens on urban wellbeing"}
+# Execute workload (also available: execute_async() for async contexts)
 multi_report = multi_agent.execute(project, deployment_id="demo", max_steps=20)
 final_document = multi_report.node_results("writer")[-1]
 ```
