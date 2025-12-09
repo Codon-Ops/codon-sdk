@@ -16,15 +16,27 @@ CodonWorkload is the foundation for building observable AI agents. Whether you b
 
 For complete method signatures and parameters, see the [API Reference](api-reference.md).
 
-### Core Methods
+### Execution and Results
 
 **`execute(payload, *, deployment_id, entry_nodes=None, max_steps=1000)`**
 
 Executes the workload synchronously and returns an `ExecutionReport`. This is the primary method for running workloads in synchronous contexts.
 
-- **Universal interface**: Works identically whether the workload was built from scratch or created via framework integrations (e.g., LangGraph)
 - **Async alternative**: Use `execute_async()` for async/await environments
 - **Parameters**: See [execute() API reference](api-reference.md#codon_sdk.agents.CodonWorkload.execute) for details
+
+**`report.node_results(node_name)`**
+
+Retrieves all outputs from a specific node during workload execution. Returns a list of results in execution order.
+
+- **Usage**: `final_output = report.node_results("output_node")[-1]` gets the most recent result
+- **Multiple executions**: If a node runs multiple times, you get all results as a list
+- **Parameters**: See [node_results() API reference](api-reference.md#codon_sdk.agents.ExecutionReport.node_results) for details
+
+**Key Properties**
+
+- **`logic_id`**: Unique identifier for this specific workload configuration. Changes when nodes/edges are modified.
+- **`agent_class_id`**: Stable identifier for this workload type (format: 'name:version'). Consistent across deployments.
 
 ## Key Concepts
 

@@ -81,11 +81,11 @@ print(f"Ledger entries: {len(report.ledger)}")
 ```
 
 ### What Happened?
-1. **LangGraph → CodonWorkload**: Your LangGraph was converted into a standard CodonWorkload with the same execution interface as [building from scratch](../building-from-scratch.md#core-methods)
+1. **LangGraph → CodonWorkload**: Your LangGraph was converted into a standard CodonWorkload with the same execution interface as [building from scratch](../building-from-scratch.md#execution-and-results)
 2. **Node Registration**: Every LangGraph node was registered as a Codon node via `add_node`, producing a `NodeSpec`
 3. **Edge Conversion**: Edges in the LangGraph became workload edges, so `runtime.emit` drives execution
 4. **Token Execution**: `execute` seeded tokens with the provided state, ran the graph in token order, and captured telemetry & audit logs
-5. **Same Results**: You can inspect `report.ledger` for compliance, or `report.node_results(...)` for business outputs - just like any CodonWorkload
+5. **Universal Interface**: You can use all the same methods - `execute()`, `report.node_results()`, `logic_id`, etc. - documented in [Execution and Results](../building-from-scratch.md#execution-and-results)
 
 ## Platform Integration
 
