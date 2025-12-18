@@ -15,7 +15,10 @@
 import inspect
 import json
 import os
+import re
 import time
+import warnings
+from importlib import metadata as importlib_metadata
 from abc import ABC, abstractmethod
 from contextvars import ContextVar
 from functools import wraps
@@ -83,6 +86,41 @@ def current_invocation() -> Optional[NodeTelemetryPayload]:
     """Return the currently active node invocation telemetry (if any)."""
 
     return _ACTIVE_INVOCATION.get()
+
+
+def _is_truthy(value: Optional[str]) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
+
+
+def _parse_major(version: str) -> Optional[int]:
+    match = re.match(r"(\d+)", version)
+    if not match:
+        return None
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def _maybe_warn_deprecated_langgraph() -> None:
+    if _is_truthy(os.getenv("CODON_LANGGRAPH_DEPRECATION_SILENCE")):
+        return
+    try:
+        version = importlib_metadata.version("langgraph")
+    except importlib_metadata.PackageNotFoundError:
+        return
+    except Exception:
+        return
+    major = _parse_major(version)
+    if major is not None and major < 1:
+        warnings.warn(
+            "LangGraph <1.0 support is deprecated and will be removed after "
+            "codon-instrumentation-langgraph 0.1.0a5. Upgrade to LangGraph "
+            "v1.x or pin codon-instrumentation-langgraph<=0.1.0a5. Set "
+            "CODON_LANGGRAPH_DEPRECATION_SILENCE=1 to suppress this warning.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
 
 def _safe_repr(value: Any, *, max_length: int = 2048) -> str:
@@ -483,3 +521,5 @@ from .adapter import (  # noqa: E402  # isort: skip
     NodeOverride,
 )
 from .callbacks import LangGraphTelemetryCallback  # noqa: E402  # isort: skip
+
+_maybe_warn_deprecated_langgraph()

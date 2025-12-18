@@ -10,6 +10,7 @@ This scaffold explains the agent-facing contracts provided by `codon_sdk`. Flesh
 - **Instrumentation mixins:** Framework packages ship their own mixins (see `docs/guides/workload-mixin-guidelines.md`) to expose `from_*` constructors while keeping the core SDK agnostic.
 - **Reference implementation:** Each instrumentation package should define mixins inside its own namespace (e.g., `codon.instrumentation.langgraph.LangGraphWorkloadMixin`).
 - **Adapters:** `LangGraphWorkloadAdapter.from_langgraph(...)` demonstrates how to wrap existing LangGraph graphs with `CodonWorkload` automatically; use it as a model for future adapters.
+- **LangGraph compatibility:** `codon-instrumentation-langgraph` `0.1.0a5` is the final release that supports LangGraph 0.3.x. Starting in `0.2.0a0`, the adapter targets LangChain/LangGraph v1.x only and will emit a `DeprecationWarning` on older versions.
 
 ## CodonWorkload (Opinionated Implementation)
 - **Module:** `codon_sdk.agents.codon_workload`
