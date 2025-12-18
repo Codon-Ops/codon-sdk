@@ -2,6 +2,18 @@
 
 If you're already using LangGraph, the Codon SDK provides seamless integration through the `LangGraphWorkloadAdapter`. This allows you to wrap your existing StateGraphs with minimal code changes while gaining comprehensive telemetry and observability.
 
+## Deprecation Notice (LangGraph 0.3.x)
+
+Support for LangGraph 0.3.x is deprecated and will be removed after the `0.1.0a5` release of `codon-instrumentation-langgraph`. If you need to stay on LangGraph 0.3.x, pin this package at `<=0.1.0a5`. Starting with `0.2.0a0`, the adapter will support only LangChain/LangGraph v1.x.
+
+### python-warnings
+
+When running with LangGraph 0.3.x you will see a `DeprecationWarning` explaining the cutoff. To silence the warning, set:
+
+```
+CODON_LANGGRAPH_DEPRECATION_SILENCE=1
+```
+
 ## Understanding State Graph vs Compiled Graph
 
 LangGraph has two distinct graph representations:

@@ -4,6 +4,13 @@ This document explains how to convert an existing LangGraph `StateGraph` into a 
 
 ---
 
+## Deprecation Notice (LangGraph 0.3.x)
+- `codon-instrumentation-langgraph` `0.1.0a5` is the last release that supports LangGraph 0.3.x.
+- Starting with `0.2.0a0`, the adapter targets LangChain/LangGraph v1.x only.
+- A `DeprecationWarning` is emitted when LangGraph < 1.0 is detected (set `CODON_LANGGRAPH_DEPRECATION_SILENCE=1` to suppress).
+
+---
+
 ## Why Wrap a LangGraph Graph?
 - **Zero instrumentation boilerplate:** every LangGraph node is auto-wrapped with `track_node`, producing OpenTelemetry spans without manual decorators.
 - **Stable identifiers:** nodes become `NodeSpec`s with deterministic SHA-256 IDs, and the overall graph gets a logic ID for caching, retries, and provenance.
