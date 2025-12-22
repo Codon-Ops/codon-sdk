@@ -2,6 +2,22 @@
 
 If you're already using LangGraph, the Codon SDK provides seamless integration through the `LangGraphWorkloadAdapter`. This allows you to wrap your existing StateGraphs with minimal code changes while gaining comprehensive telemetry and observability. See [Execution and Results](../building-from-scratch.md#execution-and-results) for the complete interface that becomes available.
 
+## Deprecation Notice (LangGraph 0.3.x)
+Support for LangGraph 0.3.x is deprecated and will be removed after the 0.1.0a5 release of codon-instrumentation-langgraph. If you need to stay on LangGraph 0.3.x, pin this package at <=0.1.0a5. Starting with 0.2.0a0, the adapter will support only LangChain/LangGraph v1.x.
+
+### python-warnings
+When running with LangGraph 0.3.x you will see a DeprecationWarning explaining the cutoff. To silence the warning, set:
+
+CODON_LANGGRAPH_DEPRECATION_SILENCE=1
+
+## Prerequisites
+
+- Python 3.9 or higher
+- LangChain 1.0 or higher
+- LangGraph 1.0 or higher
+
+**Note:** The instrumentation package assumes that invocations to an LLM are being done using a `LangChain` interface. Other LLM client interfaces are not currently supported at this time and will not yield token metadata on the [**Codon Optimization Platform**](https://optimization.codonops.ai).
+
 ## Understanding State Graph vs Compiled Graph
 
 LangGraph has two distinct graph representations:
@@ -9,7 +25,7 @@ LangGraph has two distinct graph representations:
 - **State Graph**: The graph you define and add nodes to during development
 - **Compiled Graph**: The executable version created when you want to run the graph
 
-The `LangGraphWorkloadAdapter` works by wrapping your StateGraph and compiling it for you, allowing you to pass compile keyword arguments for features like checkpointers and long-term memory.
+The `LangGraphWorkloadAdapter` works with either your StateGraph or CompiledGraph. When wrapping your StateGraph, the adapter compiles it for you, allowing you to pass compile keyword arguments for features like checkpointers and long-term memory. When wrapping a CompiledGraph, the adapter automatically inherits any pre-compiled features of that graph.
 
 ## Using LangGraphWorkloadAdapter
 
@@ -36,6 +52,45 @@ self._graph = LangGraphWorkloadAdapter.from_langgraph(
     compile_kwargs={"checkpointer": MemorySaver()}
 )
 ```
+
+## Instrumenting Prebuilt Graphs (create_agent)
+
+LangChain v1's `create_agent` returns a compiled LangGraph graph, which means you can wrap it directly without rebuilding a `StateGraph`. (See the LangChain Studio docs: https://docs.langchain.com/oss/python/langchain/studio.)
+
+```python
+from langchain.agents import create_agent
+from codon.instrumentation.langgraph import LangGraphWorkloadAdapter
+
+agent_graph = create_agent(
+    model=model,
+    tools=tools,
+    system_prompt="You are a helpful assistant.",
+)
+
+graph = LangGraphWorkloadAdapter.from_langgraph(
+    agent_graph,
+    name="PrebuiltAgent",
+    version="1.0.0",
+    node_overrides={
+        # Optional: restore NodeSpec fidelity when wrapping compiled graphs
+        "planner": {"role": "planner", "callable": planner_fn},
+        "agent": {"role": "agent", "model_name": "gpt-4o"},
+    },
+    edge_overrides=[
+        ("__start__", "planner"),
+        ("planner", "agent"),
+        ("agent", "__end__"),
+    ],
+)
+
+result = graph.invoke({"input": "Summarize the latest updates."})
+```
+
+Notes:
+- Compiled graphs can obscure callable signatures and schemas, so `node_overrides` is the easiest way to restore full NodeSpec metadata.
+- If you only have the compiled graph, you can still list available node names via `graph.nodes.keys()` and use those keys in `node_overrides`.
+- If compiled graphs do not expose edges, you can supply `edge_overrides` to populate the graph snapshot span.
+
 
 ### Automatic Node Inference
 
@@ -74,26 +129,25 @@ workload = LangGraphWorkloadAdapter.from_langgraph(
 )
 
 initial_state = {"topic": "Sustainable cities"}
-# Execute workload (also available: execute_async() for async contexts)
-report = workload.execute({"state": initial_state}, deployment_id="dev")
-print(report.node_results("writer")[-1])
-print(f"Ledger entries: {len(report.ledger)}")
+# Execute workload (also available: ainvoke() for async contexts)
+report = workload.invoke({"state": initial_state})
+print(report.get("writer")[-1])
 ```
 
 ### What Happened?
-1. **LangGraph → CodonWorkload**: Your LangGraph was converted into a standard CodonWorkload with the same execution interface as [building from scratch](../building-from-scratch.md#execution-and-results)
+1. **LangGraph → CodonWorkload**: Your LangGraph was converted into a standard CodonWorkload while maintaining the same invocation interface that LangGraph uses (`invoke`, `ainvoke`, `stream`, `astream`) -- this way you only need to change your code in one place and everything else will just work.
 2. **Node Registration**: Every LangGraph node was registered as a Codon node via `add_node`, producing a `NodeSpec`
-3. **Edge Conversion**: Edges in the LangGraph became workload edges, so `runtime.emit` drives execution
-4. **Token Execution**: `execute` seeded tokens with the provided state, ran the graph in token order, and captured telemetry & audit logs
-5. **Universal Interface**: You can use all the same methods - `execute()`, `report.node_results()`, `logic_id`, etc. - documented in [Execution and Results](../building-from-scratch.md#execution-and-results)
+
+3. **Token Execution**: `invoke` ran the graph and captured telemetry & audit logs
+
 
 ## Platform Integration
 
-The `initialize_telemetry()` function in the example above connects your LangGraph workflow to the **Codon observability platform**. This transforms your local OpenTelemetry spans into rich telemetry data visible in your Codon dashboard.
+The `initialize_telemetry()` function in the example above connects your LangGraph workflow to the [**Codon Optimization Platform**](https://optimization.codonops.ai). This transforms your local OpenTelemetry spans into rich telemetry data visible in your Codon dashboard.
 
 **Platform Setup Required**: Before initializing telemetry, you need a Codon API key. Follow the [Platform Setup guide](../getting-started.md#platform-setup) to:
 1. Create your Codon account
-2. Obtain your API key  
+2. Obtain your API key
 3. Set the `CODON_API_KEY` environment variable
 
 **What gets sent to the platform:**
@@ -127,22 +181,6 @@ workload = LangGraphWorkloadAdapter.from_langgraph(
 ```
 Any fields you omit fall back to the adapter defaults. Overrides propagate to telemetry span attributes (e.g., `codon.nodespec.role`, `codon.nodespec.model_name`) and the generated `NodeSpec` entries.
 
-## Handling State
-
-- The adapter expects your token payload to contain a dictionary under the `"state"` key.
-- Each LangGraph node receives that state, invokes the original runnable, and emits updated state to successors.
-- Shared run-level data lives in `runtime.state`; you can read it from within nodes for cross-node coordination.
-
-Example node signature inside your LangGraph graph:
-```python
-async def researcher(state):
-    # state is whatever was previously emitted
-    plan = state["plan"]
-    insights = await fetch_insights(plan)
-    return {"insights": insights}
-```
-When wrapped by the adapter, the Codon node sees `message["state"]` and merges the returned dict with the existing state.
-
 ## Entry Nodes
 
 By default the adapter infers entry nodes as those with no incoming edges. You can override this by supplying `entry_nodes`:
@@ -154,7 +192,6 @@ workload = LangGraphWorkloadAdapter.from_langgraph(
     entry_nodes=["bootstrap"],
 )
 ```
-At execution time you can still override entry nodes via `workload.execute(..., entry_nodes=[...])` if needed.
 
 ## Advanced Example: Reflection Loop
 
@@ -195,22 +232,19 @@ workload = LangGraphWorkloadAdapter.from_langgraph(
     name="ReflectiveAgent",
     version="0.1.0",
 )
-# Execute workload (also available: execute_async() for async contexts)
-result = workload.execute({"state": {"topic": "urban gardens"}}, deployment_id="demo")
-print(result.node_results("finalize")[-1])
+# Execute workload (also available: ainvoke() for async contexts)
+result = workload.invoke({"state": {"topic": "urban gardens"}})
+print(result.get("finalize")[-1])
 ```
-The ledger records each iteration through the loop, and `runtime.state` tracks iteration counts for auditing.
 
 ## Telemetry & Observability Benefits
 
-- Each node span carries workload metadata (`codon.workload.id`, `codon.workload.run_id`, `codon.workload.logic_id`, `codon.workload.deployment_id`, `codon.organization.id`) so traces can be rolled up by workload, deployment, or organization without joins.
+- Each node span carries workload metadata (`codon.workload.id`, `codon.workload.run_id`, `codon.workload.logic_id`, `codon.workload.deployment_id`, `codon.organization.id`) so traces can be rolled up by workload, deployment, or organization.
 - `LangGraphTelemetryCallback` is attached automatically when invoking LangChain runnables; it captures model vendor/identifier, token usage (prompt, completion, total), and response metadata, all of which is emitted as span attributes (`codon.tokens.*`, `codon.model.*`, `codon.node.raw_attributes_json`).
 - Node inputs/outputs and latency are recorded alongside status codes, enabling comprehensive observability.
-- The audit ledger covers token enqueue/dequeue, node completions, custom events (`runtime.record_event`), and stop requests for replay and compliance workflows.
 
 ## Adapter Options & Artifacts
 
 - Use `compile_kwargs={...}` when calling `LangGraphWorkloadAdapter.from_langgraph(...)` to compile your graph with checkpointers, memory stores, or any other LangGraph runtime extras. The adapter still inspects the pre-compiled graph for node metadata while compiling with the provided extras so the runtime is ready to go.
-- Set `return_artifacts=True` to receive a `LangGraphAdapterResult` containing the `CodonWorkload`, the original state graph, and the compiled graph. This makes it easy to hand both artifacts to downstream systems (e.g., background runners) without re-compiling.
 - Provide `runtime_config={...}` during adaptation to establish default invocation options (e.g., base callbacks, tracing settings). At execution time, pass `langgraph_config={...}` to `workload.execute(...)` to layer per-run overrides; both configs are merged and supplied alongside Codon's telemetry callback.
 - Regardless of the return value, the resulting workload exposes `langgraph_state_graph`, `langgraph_compiled_graph`, `langgraph_compile_kwargs`, and `langgraph_runtime_config` for quick access to the underlying LangGraph objects.
