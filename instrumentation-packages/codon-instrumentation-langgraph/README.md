@@ -37,7 +37,7 @@ db_agent_graph.add_node("query_resolver_node", self.query_resolver_node)
 db_agent_graph.add_node("query_executor_node", self.query_executor_node)
 # ... add more nodes and edges
 
-# Wrap with Codon adapter
+# Wrap with Codon adapter (returns an instrumented graph)
 self._graph = LangGraphWorkloadAdapter.from_langgraph(
     db_agent_graph,
     name="LangGraphSQLAgentDemo",
@@ -46,7 +46,45 @@ self._graph = LangGraphWorkloadAdapter.from_langgraph(
     tags=["langgraph", "demo", "sql"],
     compile_kwargs={"checkpointer": MemorySaver()}
 )
+
+# Invoke the graph as usual
+result = self._graph.invoke({"question": "Which locations pay data engineers the most?"})
+
+# Access workload metadata if needed
+workload = self._graph.workload
 ```
+
+## Instrumenting Prebuilt Graphs (create_agent)
+
+LangChain v1's `create_agent` returns a compiled LangGraph graph, which means you can wrap it directly without rebuilding a `StateGraph`. (See the LangChain Studio docs: https://docs.langchain.com/oss/python/langchain/studio.)
+
+```python
+from langchain.agents import create_agent
+from codon.instrumentation.langgraph import LangGraphWorkloadAdapter
+
+agent_graph = create_agent(
+    model=model,
+    tools=tools,
+    system_prompt="You are a helpful assistant.",
+)
+
+graph = LangGraphWorkloadAdapter.from_langgraph(
+    agent_graph,
+    name="PrebuiltAgent",
+    version="1.0.0",
+    node_overrides={
+        # Optional: restore NodeSpec fidelity when wrapping compiled graphs
+        "planner": {"role": "planner", "callable": planner_fn},
+        "agent": {"role": "agent", "model_name": "gpt-4o"},
+    },
+)
+
+result = graph.invoke({"input": "Summarize the latest updates."})
+```
+
+Notes:
+- Compiled graphs can obscure callable signatures and schemas, so `node_overrides` is the easiest way to restore full NodeSpec metadata.
+- If you only have the compiled graph, you can still list available node names via `graph.nodes.keys()` and use those keys in `node_overrides`.
 
 ### Automatic Node Inference
 
@@ -60,6 +98,17 @@ You can pass any LangGraph compile arguments through `compile_kwargs`:
 - Checkpointers for persistence
 - Memory configurations
 - Custom compilation options
+
+## Graph Snapshot Span
+
+Each graph invocation emits a single graph snapshot span (one per run) that captures the full node/edge structure. This lets downstream analysis understand the full graph shape even when only a subset of nodes executed.
+
+## Edge Cases & Limitations
+
+- **Direct SDK calls:** If a node calls a provider SDK directly (not via a LangChain runnable), callbacks will not fire and token usage metadata will be missing.
+- **Custom runnables:** Runnables that do not expose `invoke/ainvoke` cannot be auto-wrapped with config injection.
+- **Async context boundaries:** Background tasks can drop ContextVar state, which may prevent config propagation into LLM calls.
+- **Provider usage metadata:** Some providers only return token usage when explicitly enabled (especially in streaming).
 
 ## Best Practices
 

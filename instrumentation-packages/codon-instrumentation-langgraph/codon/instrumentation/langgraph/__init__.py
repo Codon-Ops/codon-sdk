@@ -34,7 +34,7 @@ from codon_sdk.instrumentation.schemas.nodespec import (
     _RESOLVED_ORG_ID,
     _RESOLVED_ORG_NAMESPACE,
 )
-from codon_sdk.agents import Workload
+from .context import GraphInvocationContext, current_graph_context
 from codon_sdk.instrumentation.schemas.telemetry.spans import CodonBaseSpanAttributes
 from codon_sdk.instrumentation.telemetry import NodeTelemetryPayload
 from codon_sdk.instrumentation import initialize_telemetry
@@ -47,7 +47,9 @@ __all__ = [
     "LangGraphAdapterResult",
     "NodeOverride",
     "current_invocation",
+    "current_graph_context",
     "LangGraphTelemetryCallback",
+    "LangGraphNodeSpanCallback",
 ]
 
 ORG_NAMESPACE: str = os.getenv("ORG_NAMESPACE")
@@ -59,6 +61,8 @@ _instrumented_nodes: List[NodeSpec] = []
 _ACTIVE_INVOCATION: ContextVar[Optional[NodeTelemetryPayload]] = ContextVar(
     "codon_langgraph_active_invocation", default=None
 )
+
+
 
 
 class LangGraphWorkloadMixin(ABC):
@@ -78,14 +82,15 @@ class LangGraphWorkloadMixin(ABC):
         version: str,
         description: Optional[str] = None,
         tags: Optional[Sequence[str]] = None,
-    ) -> Workload:
-        """Translate a LangGraph graph into a concrete Codon workload."""
+    ) -> Any:
+        """Wrap a LangGraph graph and return an instrumented graph."""
 
 
 def current_invocation() -> Optional[NodeTelemetryPayload]:
     """Return the currently active node invocation telemetry (if any)."""
 
     return _ACTIVE_INVOCATION.get()
+
 
 
 def _is_truthy(value: Optional[str]) -> bool:
@@ -520,6 +525,9 @@ from .adapter import (  # noqa: E402  # isort: skip
     LangGraphWorkloadAdapter,
     NodeOverride,
 )
-from .callbacks import LangGraphTelemetryCallback  # noqa: E402  # isort: skip
+from .callbacks import (  # noqa: E402  # isort: skip
+    LangGraphNodeSpanCallback,
+    LangGraphTelemetryCallback,
+)
 
 _maybe_warn_deprecated_langgraph()

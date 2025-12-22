@@ -40,10 +40,18 @@ class CodonBaseSpanAttributes(Enum):
     NetworkCallsJson: str = "codon.network.calls_json"
 
 
+class CodonGraphSpanAttributes(Enum):
+    DefinitionJson: str = "codon.graph.definition_json"
+    DefinitionHash: str = "codon.graph.definition_hash"
+    NodeCount: str = "codon.graph.node_count"
+    EdgeCount: str = "codon.graph.edge_count"
+
+
 class CodonSpanNames(Enum):
     AgentRun: str = "agent.run"
     AgentTool: str = "agent.tool"
     AgentWorkflow: str = "agent.workflow"
+    AgentGraph: str = "agent.graph"
     AgentTask: str = "agent.task"
     AgentLLM: str = "agent.llm"
     AgentLLMCompletion: str = "agent.llm.completion"

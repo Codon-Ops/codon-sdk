@@ -18,6 +18,7 @@ pytest.importorskip("opentelemetry.sdk.trace")
 
 from codon.instrumentation.langgraph import (  # type: ignore
     LangGraphAdapterResult,
+    LangGraphNodeSpanCallback,
     LangGraphTelemetryCallback,
     LangGraphWorkloadAdapter,
 )
@@ -42,11 +43,17 @@ class FakeGraph:
         self.edges = edges or [("start", "end")]
         self.compile_called = False
         self.compile_kwargs = None
+        self.seen_configs: list[Mapping[str, Any]] = []
 
     def compile(self, **kwargs):
         self.compile_called = True
         self.compile_kwargs = kwargs
-        return {"compiled": True, "kwargs": kwargs}
+        return self
+
+    def invoke(self, state, *, config=None):
+        if config is not None:
+            self.seen_configs.append(config)
+        return state
 
 
 def test_adapter_returns_artifacts_with_compile_kwargs():
@@ -66,11 +73,12 @@ def test_adapter_returns_artifacts_with_compile_kwargs():
     assert result.state_graph is graph
     assert graph.compile_called is True
     assert graph.compile_kwargs == {"checkpointer": "memory"}
-    assert result.compiled_graph["kwargs"]["checkpointer"] == "memory"
+    assert result.compiled_graph is graph
 
     assert getattr(workload, "langgraph_state_graph") is graph
     assert getattr(workload, "langgraph_compiled_graph") == result.compiled_graph
     assert getattr(workload, "langgraph_compile_kwargs") == {"checkpointer": "memory"}
+    assert result.wrapped_graph.workload is workload
 
     node_names = {spec.name for spec in workload.nodes}
     assert node_names == {"start", "end"}
@@ -90,6 +98,10 @@ class RecordingRunnable:
         self.seen_configs.append(config or {})
         return {"value": state.get("value", 0) + 1}
 
+    def ainvoke(self, state, *, config=None):
+        self.seen_configs.append(config or {})
+        return {"value": state.get("value", 0) + 1}
+
 
 def passthrough(state):
     return state
@@ -104,9 +116,7 @@ class NodeWrapper:
 
 
 def test_runtime_config_merges_callbacks():
-    recording = RecordingRunnable()
-    nodes = {"start": recording, "end": passthrough}
-    graph = FakeGraph(nodes=nodes)
+    graph = FakeGraph()
 
     base_config = {"callbacks": ["base"], "metadata": "base"}
     result = LangGraphWorkloadAdapter.from_langgraph(
@@ -121,20 +131,19 @@ def test_runtime_config_merges_callbacks():
     assert workload.langgraph_runtime_config == base_config
 
     invocation_config = {"metadata": "override", "callbacks": ["call"]}
-    workload.execute(
-        {"state": {"value": 0}},
-        deployment_id="dev",
-        langgraph_config=invocation_config,
-    )
+    wrapped = result.wrapped_graph
+    wrapped.invoke({"value": 0}, config=invocation_config)
 
-    assert recording.seen_configs
-    config = recording.seen_configs[0]
+    assert graph.seen_configs
+    config = graph.seen_configs[0]
 
     assert config["metadata"] == "override"
     callbacks = config["callbacks"]
+    assert len(callbacks) >= 4
     assert callbacks[0] == "base"
     assert callbacks[1] == "call"
-    assert isinstance(callbacks[2], LangGraphTelemetryCallback)
+    assert isinstance(callbacks[2], LangGraphNodeSpanCallback)
+    assert isinstance(callbacks[3], LangGraphTelemetryCallback)
 
     start_spec = next(spec for spec in workload.nodes if spec.name == "start")
     assert start_spec.callable_signature.startswith("node_callable(")
