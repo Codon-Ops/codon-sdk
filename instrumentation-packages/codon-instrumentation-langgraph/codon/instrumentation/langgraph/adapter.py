@@ -558,6 +558,7 @@ class LangGraphWorkloadAdapter:
         tags: Optional[Sequence[str]] = None,
         org_namespace: Optional[str] = None,
         node_overrides: Optional[Mapping[str, Any]] = None,
+        edge_overrides: Optional[Sequence[Tuple[str, str]]] = None,
         entry_nodes: Optional[Sequence[str]] = None,
         max_reviews: Optional[int] = None,
         compile_kwargs: Optional[Mapping[str, Any]] = None,
@@ -583,6 +584,8 @@ class LangGraphWorkloadAdapter:
         compiled, raw_nodes, raw_edges = cls._normalise_graph(
             graph, compile_kwargs=compile_kwargs
         )
+        if edge_overrides is not None:
+            raw_edges = edge_overrides
         overrides = cls._normalise_overrides(node_overrides)
         node_map = cls._coerce_node_map(raw_nodes)
         raw_edge_list = cls._coerce_edges(raw_edges)

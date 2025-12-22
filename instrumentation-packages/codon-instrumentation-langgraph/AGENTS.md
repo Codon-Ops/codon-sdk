@@ -74,9 +74,16 @@ graph = LangGraphWorkloadAdapter.from_langgraph(
         "write": {"role": "author"},
         "critique": {"role": "qa", "output_schema": "CritiqueResult"},
     },
+    edge_overrides=[
+        ("__start__", "plan"),
+        ("plan", "write"),
+        ("write", "critique"),
+        ("critique", "__end__"),
+    ],
 )
 ```
 Any fields you omit fall back to the adapter defaults. Overrides propagate to telemetry span attributes (e.g., `codon.nodespec.role`, `codon.nodespec.model_name`) and the generated `NodeSpec` entries.
+If a compiled graph does not expose edges, you can pass `edge_overrides` so the graph snapshot span records topology.
 
 ---
 
