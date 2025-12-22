@@ -27,9 +27,13 @@ from codon_sdk.agents import CodonWorkload  # noqa: F401  (export convenience)
 
 try:  # pragma: no cover - make dependency optional
     from codon.instrumentation.langgraph import current_invocation
+    from codon.instrumentation.langgraph.context import current_langgraph_config
 except Exception:  # pragma: no cover - defensive fallback
 
     def current_invocation() -> Optional[NodeTelemetryPayload]:  # type: ignore
+        return None
+
+    def current_langgraph_config() -> Optional[Mapping[str, Any]]:  # type: ignore
         return None
 
 
@@ -72,7 +76,7 @@ async def track_llm_async(
             if value is not None:
                 span.set_attribute(key, value)
 
-        merged_config = _merge_config(config)
+        merged_config = _merge_config(config or current_langgraph_config())
 
         try:
             if merged_config is not None:
@@ -139,17 +143,32 @@ def _merge_config(override: Optional[Mapping[str, Any]]) -> Optional[Mapping[str
 
     for key, value in override.items():
         if key == "callbacks":
-            if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
-                callbacks_list.extend(value)
-            else:
-                callbacks_list.append(value)
+            callbacks_list.extend(_normalize_callbacks(value))
         else:
             merged[key] = value
 
     if callbacks_list:
-        merged["callbacks"] = callbacks_list
+        merged["callbacks"] = _ensure_callback_list(callbacks_list)
 
     return merged if merged else None
+
+
+def _normalize_callbacks(value: Any) -> list[Any]:
+    handlers = getattr(value, "handlers", None)
+    if handlers is not None:
+        return list(handlers)
+    if isinstance(value, Iterable) and not isinstance(value, (str, bytes)):
+        return list(value)
+    return [value]
+
+
+def _ensure_callback_list(value: Any) -> list[Any]:
+    handlers = getattr(value, "handlers", None)
+    if handlers is not None:
+        return list(handlers)
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return [value]
 
 
 def _populate_telemetry(

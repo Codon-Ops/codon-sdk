@@ -15,16 +15,43 @@
 """LangGraph integration helpers for Codon Workloads."""
 from __future__ import annotations
 
+import hashlib
+import logging
 import inspect
 import json
+import os
+import uuid
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
 
 from codon_sdk.agents import CodonWorkload
+from codon_sdk.instrumentation.schemas.telemetry.spans import (
+    CodonBaseSpanAttributes,
+    CodonGraphSpanAttributes,
+    CodonSpanNames,
+)
+from codon_sdk.instrumentation.schemas.nodespec import (
+    _RESOLVED_ORG_ID,
+    _RESOLVED_ORG_NAMESPACE,
+)
+from opentelemetry import trace
+
+from .context import (
+    GraphInvocationContext,
+    _ACTIVE_CONFIG,
+    _ACTIVE_GRAPH_CONTEXT,
+    current_langgraph_config,
+)
 from codon_sdk.agents.codon_workload import WorkloadRuntimeError
 
-from .callbacks import LangGraphTelemetryCallback
+from .callbacks import (
+    BoundInvocationTelemetryCallback,
+    LangGraphNodeSpanCallback,
+    LangGraphTelemetryCallback,
+    _lookup_invocation_metadata,
+)
+from . import current_invocation
 
 try:  # pragma: no cover - we do not require langgraph at install time
     from langgraph.graph import StateGraph  # type: ignore
@@ -34,6 +61,110 @@ except Exception:  # pragma: no cover
 JsonDict = Dict[str, Any]
 RawNodeMap = Mapping[str, Any]
 RawEdgeIterable = Iterable[Tuple[str, str]]
+
+
+def _ensure_callback_list(value: Any) -> List[Any]:
+    if value is None:
+        return []
+    handlers = getattr(value, "handlers", None)
+    if handlers is not None:
+        return list(handlers)
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return [value]
+
+
+def _wrap_runnable(value: Any) -> Any:
+    if isinstance(value, _RunnableConfigWrapper):
+        return value
+    if not (hasattr(value, "invoke") or hasattr(value, "ainvoke")):
+        return value
+    return _RunnableConfigWrapper(value)
+
+
+def _extract_invocation_from_config(config: Mapping[str, Any]) -> Optional[Any]:
+    metadata = config.get("metadata")
+    if isinstance(metadata, Mapping):
+        invocation = metadata.get("codon_invocation")
+        if invocation is not None:
+            return invocation
+    invocation = _lookup_invocation_metadata(config)
+    if invocation is not None:
+        return invocation
+    return None
+
+
+def _inject_bound_callback(config: Mapping[str, Any]) -> Mapping[str, Any]:
+    if not isinstance(config, Mapping):
+        return config
+    invocation = _extract_invocation_from_config(config) or current_invocation()
+    if os.getenv("CODON_LANGGRAPH_DEBUG_USAGE") == "1":
+        logger = logging.getLogger(__name__)
+        logger.info(
+            "codon.langgraph usage debug: inject_bound_callback invocation_present=%s metadata_keys=%s",
+            bool(invocation),
+            sorted(config.get("metadata", {}).keys())
+            if isinstance(config.get("metadata"), Mapping)
+            else None,
+        )
+    if not invocation:
+        return config
+    callbacks = _ensure_callback_list(config.get("callbacks"))
+    callbacks = [
+        cb for cb in callbacks if not isinstance(cb, BoundInvocationTelemetryCallback)
+    ]
+    invocation.extra_attributes.setdefault("codon_span_defer", True)
+    updated = dict(config)
+    updated["callbacks"] = callbacks + [BoundInvocationTelemetryCallback(invocation)]
+    return updated
+
+
+def _ensure_codon_run_metadata(config: Mapping[str, Any], run_id: str) -> None:
+    if not isinstance(config, dict):
+        return
+    metadata = config.get("metadata")
+    if not isinstance(metadata, dict):
+        metadata = dict(metadata) if isinstance(metadata, Mapping) else {}
+        config["metadata"] = metadata
+    metadata.setdefault("codon_run_id", run_id)
+
+
+def _normalize_org_id(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    return value if value.startswith("ORG_") else None
+
+
+def _resource_org_id() -> Optional[str]:
+    provider = trace.get_tracer_provider()
+    resource = getattr(provider, "resource", None)
+    if not resource:
+        return None
+    attributes = getattr(resource, "attributes", None)
+    if not isinstance(attributes, Mapping):
+        return None
+    candidate = attributes.get(CodonBaseSpanAttributes.OrganizationId.value) or attributes.get(
+        "codon.organization.id"
+    )
+    if isinstance(candidate, str) and candidate.startswith("ORG_"):
+        return candidate
+    return None
+
+
+def _wrap_config_values(value: Any) -> Any:
+    if isinstance(value, Mapping):
+        wrapped: Dict[str, Any] = {}
+        for key, item in value.items():
+            if key == "callbacks":
+                wrapped[key] = item
+            else:
+                wrapped[key] = _wrap_config_values(item)
+        return wrapped
+    if isinstance(value, list):
+        return [_wrap_config_values(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_wrap_config_values(item) for item in value)
+    return _wrap_runnable(value)
 
 
 def _merge_runtime_configs(
@@ -48,16 +179,347 @@ def _merge_runtime_configs(
             continue
         for key, value in cfg.items():
             if key == "callbacks":
-                if isinstance(value, (list, tuple)):
-                    callbacks.extend(value)
-                else:
-                    callbacks.append(value)
+                callbacks.extend(_ensure_callback_list(value))
             else:
                 merged[key] = value
 
-    callbacks.append(LangGraphTelemetryCallback())
+    if not any(isinstance(cb, LangGraphNodeSpanCallback) for cb in callbacks):
+        callbacks.append(LangGraphNodeSpanCallback())
+    if not any(isinstance(cb, LangGraphTelemetryCallback) for cb in callbacks):
+        callbacks.append(LangGraphTelemetryCallback())
     merged["callbacks"] = callbacks
-    return merged
+    return _wrap_config_values(merged)
+
+
+class _RunnableConfigWrapper:
+    def __init__(self, runnable: Any) -> None:
+        self._runnable = runnable
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._runnable, name)
+
+    def invoke(self, *args: Any, **kwargs: Any) -> Any:
+        if kwargs.get("config") is None:
+            config = current_langgraph_config()
+            if config is not None:
+                kwargs = dict(kwargs)
+                kwargs["config"] = _inject_bound_callback(config)
+        try:
+            if kwargs.get("config") is not None:
+                kwargs = dict(kwargs)
+                kwargs["config"] = _inject_bound_callback(kwargs["config"])
+            return self._runnable.invoke(*args, **kwargs)
+        except TypeError:
+            kwargs.pop("config", None)
+            return self._runnable.invoke(*args, **kwargs)
+
+    async def ainvoke(self, *args: Any, **kwargs: Any) -> Any:
+        if kwargs.get("config") is None:
+            config = current_langgraph_config()
+            if config is not None:
+                kwargs = dict(kwargs)
+                kwargs["config"] = _inject_bound_callback(config)
+        try:
+            if kwargs.get("config") is not None:
+                kwargs = dict(kwargs)
+                kwargs["config"] = _inject_bound_callback(kwargs["config"])
+            return await self._runnable.ainvoke(*args, **kwargs)
+        except TypeError:
+            kwargs.pop("config", None)
+            return await self._runnable.ainvoke(*args, **kwargs)
+
+
+def _resolve_deployment_id(config: Optional[Mapping[str, Any]]) -> Optional[str]:
+    if not config:
+        return None
+    for key in ("deployment_id", "codon_deployment_id"):
+        value = config.get(key)
+        if value:
+            return str(value)
+    configurable = config.get("configurable")
+    if isinstance(configurable, Mapping):
+        value = configurable.get("deployment_id") or configurable.get("codon_deployment_id")
+        if value:
+            return str(value)
+    metadata = config.get("metadata")
+    if isinstance(metadata, Mapping):
+        value = metadata.get("deployment_id") or metadata.get("codon_deployment_id")
+        if value:
+            return str(value)
+    return None
+
+
+def _build_graph_definition(
+    node_specs: Mapping[str, Any], edges: Sequence[Tuple[str, str]]
+) -> Dict[str, Any]:
+    nodes = []
+    for name, spec in node_specs.items():
+        nodes.append(
+            {
+                "name": name,
+                "role": getattr(spec, "role", None),
+                "nodespec_id": getattr(spec, "id", None),
+            }
+        )
+    return {
+        "nodes": nodes,
+        "edges": [{"source": src, "target": dst} for src, dst in edges],
+    }
+
+
+def _hash_graph_definition(definition: Mapping[str, Any]) -> str:
+    payload = json.dumps(definition, sort_keys=True, default=str).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+class _WrappedLangGraph:
+    def __init__(
+        self,
+        graph: Any,
+        *,
+        workload: CodonWorkload,
+        node_specs: Mapping[str, Any],
+        graph_definition: Optional[Dict[str, Any]],
+        state_graph: Optional[Any] = None,
+        compiled_graph: Optional[Any] = None,
+        compile_kwargs: Optional[Mapping[str, Any]] = None,
+        runtime_config: Optional[Mapping[str, Any]] = None,
+    ) -> None:
+        self._graph = graph
+        self.workload = workload
+        self.node_specs = dict(node_specs)
+        self.graph_definition = graph_definition
+        self.runtime_config = dict(runtime_config or {})
+        self.langgraph_state_graph = state_graph
+        self.langgraph_compiled_graph = compiled_graph or graph
+        self.langgraph_compile_kwargs = dict(compile_kwargs or {})
+        self.langgraph_runtime_config = dict(runtime_config or {})
+
+    def __getattr__(self, item: str) -> Any:
+        return getattr(self._graph, item)
+
+    def _emit_graph_span(self, run_context: GraphInvocationContext) -> None:
+        tracer = trace.get_tracer(__name__)
+        with tracer.start_as_current_span(CodonSpanNames.AgentGraph.value) as span:
+            span.set_attribute(
+                CodonBaseSpanAttributes.AgentFramework.value,
+                "langgraph",
+            )
+            span.set_attribute(
+                CodonBaseSpanAttributes.WorkloadId.value,
+                run_context.workload.agent_class_id,
+            )
+            span.set_attribute(
+                CodonBaseSpanAttributes.WorkloadLogicId.value,
+                run_context.workload.logic_id,
+            )
+            span.set_attribute(
+                CodonBaseSpanAttributes.WorkloadRunId.value,
+                run_context.run_id,
+            )
+            span.set_attribute(
+                CodonBaseSpanAttributes.WorkloadName.value,
+                run_context.workload.metadata.name,
+            )
+            span.set_attribute(
+                CodonBaseSpanAttributes.WorkloadVersion.value,
+                run_context.workload.metadata.version,
+            )
+            if run_context.deployment_id:
+                span.set_attribute(
+                    CodonBaseSpanAttributes.DeploymentId.value,
+                    run_context.deployment_id,
+                )
+            org_id = run_context.organization_id or _resource_org_id()
+            if org_id:
+                span.set_attribute(
+                    CodonBaseSpanAttributes.OrganizationId.value,
+                    org_id,
+                )
+            if run_context.org_namespace:
+                span.set_attribute(
+                    CodonBaseSpanAttributes.OrgNamespace.value,
+                    run_context.org_namespace,
+                )
+
+            if self.graph_definition:
+                definition_hash = _hash_graph_definition(self.graph_definition)
+                span.set_attribute(
+                    CodonGraphSpanAttributes.DefinitionHash.value,
+                    definition_hash,
+                )
+                span.set_attribute(
+                    CodonGraphSpanAttributes.NodeCount.value,
+                    len(self.graph_definition.get("nodes", [])),
+                )
+                span.set_attribute(
+                    CodonGraphSpanAttributes.EdgeCount.value,
+                    len(self.graph_definition.get("edges", [])),
+                )
+                span.set_attribute(
+                    CodonGraphSpanAttributes.DefinitionJson.value,
+                    json.dumps(self.graph_definition, default=str),
+                )
+
+    def _invoke(self, *args: Any, config: Optional[Mapping[str, Any]] = None, **kwargs: Any):
+        merged_config = _merge_runtime_configs(self.runtime_config, config)
+        org_id = _normalize_org_id(_RESOLVED_ORG_ID) or _normalize_org_id(
+            self.workload.organization_id
+        )
+        if org_id is None:
+            org_id = _resource_org_id()
+        org_namespace = (
+            _RESOLVED_ORG_NAMESPACE
+            or os.getenv("ORG_NAMESPACE")
+            or self.workload.organization_id
+        )
+        run_context = GraphInvocationContext(
+            workload=self.workload,
+            node_specs=self.node_specs,
+            run_id=str(uuid.uuid4()),
+            deployment_id=_resolve_deployment_id(merged_config),
+            organization_id=org_id,
+            org_namespace=org_namespace,
+            graph_definition=self.graph_definition,
+        )
+        _ensure_codon_run_metadata(merged_config, run_context.run_id)
+        graph_token = _ACTIVE_GRAPH_CONTEXT.set(run_context)
+        config_token = _ACTIVE_CONFIG.set(merged_config)
+        try:
+            self._emit_graph_span(run_context)
+            try:
+                return self._graph.invoke(*args, config=merged_config, **kwargs)
+            except TypeError:
+                return self._graph.invoke(*args, **kwargs)
+        finally:
+            _ACTIVE_GRAPH_CONTEXT.reset(graph_token)
+            _ACTIVE_CONFIG.reset(config_token)
+
+    async def _ainvoke(
+        self, *args: Any, config: Optional[Mapping[str, Any]] = None, **kwargs: Any
+    ):
+        merged_config = _merge_runtime_configs(self.runtime_config, config)
+        org_id = _normalize_org_id(_RESOLVED_ORG_ID) or _normalize_org_id(
+            self.workload.organization_id
+        )
+        if org_id is None:
+            org_id = _resource_org_id()
+        org_namespace = (
+            _RESOLVED_ORG_NAMESPACE
+            or os.getenv("ORG_NAMESPACE")
+            or self.workload.organization_id
+        )
+        run_context = GraphInvocationContext(
+            workload=self.workload,
+            node_specs=self.node_specs,
+            run_id=str(uuid.uuid4()),
+            deployment_id=_resolve_deployment_id(merged_config),
+            organization_id=org_id,
+            org_namespace=org_namespace,
+            graph_definition=self.graph_definition,
+        )
+        _ensure_codon_run_metadata(merged_config, run_context.run_id)
+        graph_token = _ACTIVE_GRAPH_CONTEXT.set(run_context)
+        config_token = _ACTIVE_CONFIG.set(merged_config)
+        try:
+            self._emit_graph_span(run_context)
+            try:
+                return await self._graph.ainvoke(*args, config=merged_config, **kwargs)
+            except TypeError:
+                return await self._graph.ainvoke(*args, **kwargs)
+        finally:
+            _ACTIVE_GRAPH_CONTEXT.reset(graph_token)
+            _ACTIVE_CONFIG.reset(config_token)
+
+    def invoke(self, *args: Any, **kwargs: Any):
+        return self._invoke(*args, **kwargs)
+
+    async def ainvoke(self, *args: Any, **kwargs: Any):
+        return await self._ainvoke(*args, **kwargs)
+
+    def stream(self, *args: Any, **kwargs: Any):
+        config = kwargs.pop("config", None)
+        merged_config = _merge_runtime_configs(self.runtime_config, config)
+        org_id = _normalize_org_id(_RESOLVED_ORG_ID) or _normalize_org_id(
+            self.workload.organization_id
+        )
+        if org_id is None:
+            org_id = _resource_org_id()
+        org_namespace = (
+            _RESOLVED_ORG_NAMESPACE
+            or os.getenv("ORG_NAMESPACE")
+            or self.workload.organization_id
+        )
+        run_context = GraphInvocationContext(
+            workload=self.workload,
+            node_specs=self.node_specs,
+            run_id=str(uuid.uuid4()),
+            deployment_id=_resolve_deployment_id(merged_config),
+            organization_id=org_id,
+            org_namespace=org_namespace,
+            graph_definition=self.graph_definition,
+        )
+        _ensure_codon_run_metadata(merged_config, run_context.run_id)
+        graph_token = _ACTIVE_GRAPH_CONTEXT.set(run_context)
+        config_token = _ACTIVE_CONFIG.set(merged_config)
+        self._emit_graph_span(run_context)
+
+        def _iterator():
+            try:
+                try:
+                    iterator = self._graph.stream(*args, config=merged_config, **kwargs)
+                except TypeError:
+                    iterator = self._graph.stream(*args, **kwargs)
+                for item in iterator:
+                    yield item
+            finally:
+                _ACTIVE_GRAPH_CONTEXT.reset(graph_token)
+                _ACTIVE_CONFIG.reset(config_token)
+
+        return _iterator()
+
+    async def astream(self, *args: Any, **kwargs: Any):
+        config = kwargs.pop("config", None)
+        merged_config = _merge_runtime_configs(self.runtime_config, config)
+        org_id = _normalize_org_id(_RESOLVED_ORG_ID) or _normalize_org_id(
+            self.workload.organization_id
+        )
+        if org_id is None:
+            org_id = _resource_org_id()
+        org_namespace = (
+            _RESOLVED_ORG_NAMESPACE
+            or os.getenv("ORG_NAMESPACE")
+            or self.workload.organization_id
+        )
+        run_context = GraphInvocationContext(
+            workload=self.workload,
+            node_specs=self.node_specs,
+            run_id=str(uuid.uuid4()),
+            deployment_id=_resolve_deployment_id(merged_config),
+            organization_id=org_id,
+            org_namespace=org_namespace,
+            graph_definition=self.graph_definition,
+        )
+        _ensure_codon_run_metadata(merged_config, run_context.run_id)
+        graph_token = _ACTIVE_GRAPH_CONTEXT.set(run_context)
+        config_token = _ACTIVE_CONFIG.set(merged_config)
+        self._emit_graph_span(run_context)
+
+        async def _aiterator():
+            try:
+                try:
+                    iterator = self._graph.astream(*args, config=merged_config, **kwargs)
+                except TypeError:
+                    iterator = self._graph.astream(*args, **kwargs)
+                if inspect.isawaitable(iterator):
+                    iterator = await iterator
+                async for item in iterator:
+                    yield item
+            finally:
+                _ACTIVE_GRAPH_CONTEXT.reset(graph_token)
+                _ACTIVE_CONFIG.reset(config_token)
+
+        return _aiterator()
 
 
 @dataclass(frozen=True)
@@ -67,6 +529,7 @@ class LangGraphAdapterResult:
     workload: CodonWorkload
     state_graph: Any
     compiled_graph: Any
+    wrapped_graph: Any
 
 
 @dataclass(frozen=True)
@@ -100,8 +563,8 @@ class LangGraphWorkloadAdapter:
         compile_kwargs: Optional[Mapping[str, Any]] = None,
         runtime_config: Optional[Mapping[str, Any]] = None,
         return_artifacts: bool = False,
-    ) -> Union[CodonWorkload, LangGraphAdapterResult]:
-        """Create a :class:`CodonWorkload` from a LangGraph ``StateGraph``.
+    ) -> Union[Any, LangGraphAdapterResult]:
+        """Wrap a LangGraph graph and return an instrumented graph.
 
         Parameters
         ----------
@@ -113,7 +576,8 @@ class LangGraphWorkloadAdapter:
             you can attach checkpointers, memory stores, or other runtime extras.
         return_artifacts
             When ``True`` return a :class:`LangGraphAdapterResult` containing the
-            workload, the original state graph, and the compiled graph.
+            workload, the original state graph, the compiled graph, and the
+            instrumented graph wrapper.
         """
 
         compiled, raw_nodes, raw_edges = cls._normalise_graph(
@@ -189,14 +653,28 @@ class LangGraphWorkloadAdapter:
         setattr(workload, "langgraph_compile_kwargs", dict(compile_kwargs or {}))
         setattr(workload, "langgraph_runtime_config", dict(runtime_config or {}))
 
+        node_specs = {spec.name: spec for spec in workload.nodes}
+        graph_definition = _build_graph_definition(node_specs, valid_edges)
+        wrapped_graph = _WrappedLangGraph(
+            compiled,
+            workload=workload,
+            node_specs=node_specs,
+            graph_definition=graph_definition,
+            state_graph=graph,
+            compiled_graph=compiled,
+            compile_kwargs=compile_kwargs,
+            runtime_config=runtime_config,
+        )
+
         if return_artifacts:
             return LangGraphAdapterResult(
                 workload=workload,
                 state_graph=graph,
                 compiled_graph=compiled,
+                wrapped_graph=wrapped_graph,
             )
 
-        return workload
+        return wrapped_graph
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -217,10 +695,12 @@ class LangGraphWorkloadAdapter:
         nodes = raw_nodes or comp_nodes
         edges = raw_edges or comp_edges
 
-        if nodes is None or edges is None:
+        if nodes is None:
             raise ValueError(
-                "Unable to extract nodes/edges from LangGraph graph. Pass the original StateGraph or ensure the compiled graph exposes config.nodes/config.edges."
+                "Unable to extract nodes from LangGraph graph. Pass the original StateGraph or ensure the compiled graph exposes config.nodes/config.edges."
             )
+        if edges is None:
+            edges = []
 
         return compiled, nodes, edges
 
