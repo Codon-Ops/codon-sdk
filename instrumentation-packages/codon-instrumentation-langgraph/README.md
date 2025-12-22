@@ -77,6 +77,11 @@ graph = LangGraphWorkloadAdapter.from_langgraph(
         "planner": {"role": "planner", "callable": planner_fn},
         "agent": {"role": "agent", "model_name": "gpt-4o"},
     },
+    edge_overrides=[
+        ("__start__", "planner"),
+        ("planner", "agent"),
+        ("agent", "__end__"),
+    ],
 )
 
 result = graph.invoke({"input": "Summarize the latest updates."})
@@ -85,6 +90,7 @@ result = graph.invoke({"input": "Summarize the latest updates."})
 Notes:
 - Compiled graphs can obscure callable signatures and schemas, so `node_overrides` is the easiest way to restore full NodeSpec metadata.
 - If you only have the compiled graph, you can still list available node names via `graph.nodes.keys()` and use those keys in `node_overrides`.
+- If compiled graphs do not expose edges, you can supply `edge_overrides` to populate the graph snapshot span.
 
 ### Automatic Node Inference
 

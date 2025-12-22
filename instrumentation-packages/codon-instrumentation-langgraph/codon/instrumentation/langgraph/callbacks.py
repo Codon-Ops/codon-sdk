@@ -157,6 +157,20 @@ def _attach_bound_callback(config: Mapping[str, Any], invocation: "NodeTelemetry
 
 
 def _extract_node_name(serialized: Mapping[str, Any], kwargs: Mapping[str, Any]) -> Optional[str]:
+    metadata = kwargs.get("metadata")
+    if isinstance(metadata, Mapping):
+        node = metadata.get("langgraph_node") or metadata.get("langgraph_node_name")
+        if isinstance(node, str):
+            return node
+    config = _resolve_config(kwargs)
+    if isinstance(config, Mapping):
+        config_metadata = config.get("metadata")
+        if isinstance(config_metadata, Mapping):
+            node = config_metadata.get("langgraph_node") or config_metadata.get(
+                "langgraph_node_name"
+            )
+            if isinstance(node, str):
+                return node
     for key in ("name", "run_name"):
         value = kwargs.get(key)
         if isinstance(value, str):
@@ -179,14 +193,17 @@ class _ActiveSpan:
         telemetry,
         started_at,
         run_id: str,
+        metadata_key: Optional["_MetadataKey"] = None,
     ):
         self.span = span
         self.telemetry = telemetry
         self.started_at = started_at
         self.run_id = run_id
+        self.metadata_key = metadata_key
 
 
 _ACTIVE_BY_TELEMETRY: dict[int, _ActiveSpan] = {}
+_ACTIVE_BY_METADATA: dict["_MetadataKey", _ActiveSpan] = {}
 
 
 def _resource_org_id() -> Optional[str]:
@@ -320,6 +337,9 @@ def _finalize_node_span(active: _ActiveSpan) -> None:
 
     span.end()
     _ACTIVE_INVOCATION.set(None)
+    if active.metadata_key is not None:
+        with _METADATA_REGISTRY_LOCK:
+            _ACTIVE_BY_METADATA.pop(active.metadata_key, None)
 
 
 def _resolve_config(kwargs: Mapping[str, Any]) -> Optional[Mapping[str, Any]]:
@@ -340,18 +360,17 @@ def _resolve_metadata(kwargs: Mapping[str, Any]) -> Optional[Mapping[str, Any]]:
 
 
 def _resolve_invocation(kwargs: Mapping[str, Any]) -> Optional["NodeTelemetryPayload"]:
-    invocation = current_invocation()
-    if invocation is not None:
-        return invocation
     config = _resolve_config(kwargs)
-    if not isinstance(config, Mapping):
-        return None
-    metadata = config.get("metadata")
-    if isinstance(metadata, Mapping):
-        candidate = metadata.get("codon_invocation")
-        if isinstance(candidate, NodeTelemetryPayload):
-            return candidate
-    return _lookup_invocation_metadata(config)
+    if isinstance(config, Mapping):
+        metadata = config.get("metadata")
+        if isinstance(metadata, Mapping):
+            candidate = metadata.get("codon_invocation")
+            if isinstance(candidate, NodeTelemetryPayload):
+                return candidate
+        invocation = _lookup_invocation_metadata(config)
+        if invocation is not None:
+            return invocation
+    return current_invocation()
 
 
 def _attach_invocation_to_config(config: Mapping[str, Any], invocation: NodeTelemetryPayload) -> bool:
@@ -385,13 +404,53 @@ class LangGraphNodeSpanCallback(BaseCallbackHandler):
         nodespec = graph_context.node_specs.get(node_name)
         if nodespec is None:
             return
+        config = _resolve_config(kwargs)
+        if isinstance(config, dict):
+            metadata = config.get("metadata")
+            if not isinstance(metadata, dict):
+                metadata = dict(metadata) if isinstance(metadata, Mapping) else {}
+                config["metadata"] = metadata
+            metadata.setdefault("codon_run_id", graph_context.run_id)
+        registry_config = config
+        kwargs_metadata = _resolve_metadata(kwargs)
+        if (
+            (registry_config is None or not isinstance(registry_config.get("metadata"), Mapping))
+            and kwargs_metadata is not None
+        ):
+            registry_config = {"metadata": dict(kwargs_metadata)}
+            if self._debug_usage_enabled:
+                self._logger.info(
+                    "codon.langgraph usage debug: using kwargs metadata for registry keys=%s",
+                    sorted(kwargs_metadata.keys()),
+                )
+        metadata_key = (
+            _metadata_key_from_config(registry_config, nodespec.name)
+            if isinstance(registry_config, Mapping)
+            else None
+        )
+        if metadata_key is not None:
+            with _METADATA_REGISTRY_LOCK:
+                existing = _ACTIVE_BY_METADATA.get(metadata_key)
+            if existing is not None and not existing.telemetry.extra_attributes.get(
+                "codon_span_finalized"
+            ):
+                if config is not None:
+                    _attach_invocation_to_config(config, existing.telemetry)
+                _ACTIVE_INVOCATION.set(existing.telemetry)
+                return
 
         run_id = kwargs.get("run_id")
         if run_id is None:
             run_id = f"node-{id(nodespec)}-{time.time_ns()}"
         run_id = str(run_id)
 
-        telemetry = current_invocation() or NodeTelemetryPayload()
+        current = current_invocation()
+        if current and current.node_name and current.node_name != nodespec.name:
+            telemetry = NodeTelemetryPayload()
+        elif current and current.extra_attributes.get("codon_span_finalized"):
+            telemetry = NodeTelemetryPayload()
+        else:
+            telemetry = current or NodeTelemetryPayload()
         telemetry.node_name = telemetry.node_name or nodespec.name
         telemetry.node_role = telemetry.node_role or nodespec.role
         telemetry.nodespec_id = telemetry.nodespec_id or nodespec.id
@@ -415,25 +474,6 @@ class LangGraphNodeSpanCallback(BaseCallbackHandler):
         tracer = trace.get_tracer(__name__)
         span = tracer.start_span(nodespec.name)
         _ACTIVE_INVOCATION.set(telemetry)
-        config = _resolve_config(kwargs)
-        if isinstance(config, dict):
-            metadata = config.get("metadata")
-            if not isinstance(metadata, dict):
-                metadata = dict(metadata) if isinstance(metadata, Mapping) else {}
-                config["metadata"] = metadata
-            metadata.setdefault("codon_run_id", graph_context.run_id)
-        registry_config = config
-        kwargs_metadata = _resolve_metadata(kwargs)
-        if (
-            (registry_config is None or not isinstance(registry_config.get("metadata"), Mapping))
-            and kwargs_metadata is not None
-        ):
-            registry_config = {"metadata": dict(kwargs_metadata)}
-            if self._debug_usage_enabled:
-                self._logger.info(
-                    "codon.langgraph usage debug: using kwargs metadata for registry keys=%s",
-                    sorted(kwargs_metadata.keys()),
-                )
         if config is not None:
             attached = _attach_invocation_to_config(config, telemetry)
             _attach_bound_callback(config, telemetry)
@@ -503,21 +543,24 @@ class LangGraphNodeSpanCallback(BaseCallbackHandler):
             telemetry.node_input,
         )
 
-        self._active[run_id] = _ActiveSpan(
+        active = _ActiveSpan(
             span=span,
             telemetry=telemetry,
             started_at=time.perf_counter(),
             run_id=run_id,
+            metadata_key=metadata_key,
         )
+        self._active[run_id] = active
         _ACTIVE_BY_TELEMETRY[id(telemetry)] = self._active[run_id]
+        if metadata_key is not None:
+            with _METADATA_REGISTRY_LOCK:
+                _ACTIVE_BY_METADATA[metadata_key] = active
 
     def on_chain_end(self, outputs: Mapping[str, Any], **kwargs: Any) -> None:
         run_id = kwargs.get("run_id")
         active = None
         if run_id is not None:
             active = self._active.pop(str(run_id), None)
-        if active is None and len(self._active) == 1:
-            active = self._active.pop(next(iter(self._active.keys())), None)
         if not active:
             return
 
@@ -532,8 +575,10 @@ class LangGraphNodeSpanCallback(BaseCallbackHandler):
                 telemetry.total_tokens,
                 telemetry.token_usage is not None,
             )
-        if telemetry.extra_attributes.get("codon_span_defer") and not telemetry.extra_attributes.get(
-            "codon_span_finalized"
+        if (
+            telemetry.extra_attributes.get("codon_span_defer")
+            and telemetry.extra_attributes.get("codon_llm_seen")
+            and not telemetry.extra_attributes.get("codon_span_finalized")
         ):
             if (
                 telemetry.input_tokens is None
@@ -556,8 +601,6 @@ class LangGraphNodeSpanCallback(BaseCallbackHandler):
         active = None
         if run_id is not None:
             active = self._active.pop(str(run_id), None)
-        if active is None and len(self._active) == 1:
-            active = self._active.pop(next(iter(self._active.keys())), None)
         if not active:
             return
         telemetry = active.telemetry
@@ -591,6 +634,9 @@ class LangGraphNodeSpanCallback(BaseCallbackHandler):
         active.span.end()
         _ACTIVE_INVOCATION.set(None)
         _ACTIVE_BY_TELEMETRY.pop(id(telemetry), None)
+        if active.metadata_key is not None:
+            with _METADATA_REGISTRY_LOCK:
+                _ACTIVE_BY_METADATA.pop(active.metadata_key, None)
         config = _resolve_config(kwargs)
         if config is not None:
             _unregister_invocation_metadata(config, telemetry.node_name or "")
@@ -695,6 +741,8 @@ class LangGraphTelemetryCallback(BaseCallbackHandler):
         serialized: Mapping[str, Any],
         kwargs: Mapping[str, Any],
     ) -> None:
+        invocation.extra_attributes.setdefault("codon_llm_seen", True)
+        invocation.extra_attributes.setdefault("codon_span_defer", True)
         params = _coerce_mapping(kwargs.get("invocation_params")) or _coerce_mapping(
             serialized.get("kwargs") if isinstance(serialized, Mapping) else None
         )
